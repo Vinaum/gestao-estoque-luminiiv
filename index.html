@@ -109,9 +109,16 @@
    (Project Settings → API, no painel do Supabase)
    ====================================================================== */
 const SUPABASE_URL = 'https://zyjhxtglifevvxjxptic.supabase.co';
-const SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5amh4dGdsaWZldnZ4anhwdGljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwMjY5NDksImV4cCI6MjEwODYwMjk0OX0.bYaaUqhLUrMTCBHc3rFBBx-sDaPnxLXwOYJ0m3pO2Vs;
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5amh4dGdsaWZldnZ4anhwdGljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwMjY5NDksImV4cCI6MjEwODYwMjk0OX0.bYaaUqhLUrMTCBHc3rFBBx-sDaPnxLXwOYJ0m3pO2Vs';
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let db = null; // cliente do Supabase (criado no boot)
+
+function showFatal(msg){
+  const root = document.getElementById('root');
+  root.innerHTML = '<div class="auth-wrap"><div class="auth-card"><h1>Não foi possível iniciar</h1><p class="sub">Veja o motivo abaixo:</p><div class="auth-error">'+msg+'</div></div></div>';
+}
+window.addEventListener('error', e => showFatal(e.message));
+window.addEventListener('unhandledrejection', e => showFatal((e.reason && e.reason.message) || String(e.reason)));
 
 const CATEGORIAS = ['Elétrica','Hidráulica','Limpeza','Jardinagem','Pintura','Segurança','Ferramentas','Outros'];
 const UNIDADES = ['un','L','kg','m','cx','par','rolo'];
@@ -131,9 +138,14 @@ function isSindico(){ return profile && profile.papel==='sindico'; }
 
 /* ---------------- boot ---------------- */
 async function boot(){
-  const { data } = await supabase.auth.getSession();
+  if(!window.supabase) return showFatal('A biblioteca do Supabase não carregou. Verifique a internet ou bloqueadores de anúncios/scripts.');
+  if(SUPABASE_URL.includes('SEU-PROJETO') || SUPABASE_ANON_KEY.includes('SUA_CHAVE')) return showFatal('Configure SUPABASE_URL e SUPABASE_ANON_KEY no começo do script do index.html.');
+  try{ new URL(SUPABASE_URL); }catch(e){ return showFatal('A SUPABASE_URL parece inválida. Ela deve ser como https://SEU-PROJECT-ID.supabase.co'); }
+  db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const { data, error } = await db.auth.getSession();
+  if(error) return showFatal('Erro ao conectar ao Supabase: '+error.message);
   session = data.session;
-  supabase.auth.onAuthStateChange((_event, s)=>{
+  db.auth.onAuthStateChange((_event, s)=>{
     session = s;
     if(!s){ profile=null; renderRoot(); }
   });
@@ -148,27 +160,27 @@ async function afterLogin(){
 }
 
 async function loadProfile(){
-  const { data, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+  const { data, error } = await db.from('profiles').select('*').eq('id', session.user.id).single();
   if(!error) profile = data;
 }
 
 async function loadAll(){
   const [itemsRes, movRes, settingsRes] = await Promise.all([
-    supabase.from('items').select('*').order('nome'),
-    supabase.from('movements').select('*').order('data', {ascending:false}),
-    supabase.from('settings').select('*').eq('id',1).single()
+    db.from('items').select('*').order('nome'),
+    db.from('movements').select('*').order('data', {ascending:false}),
+    db.from('settings').select('*').eq('id',1).single()
   ]);
   state.items = itemsRes.data || [];
   state.movements = movRes.data || [];
   if(settingsRes.data) state.settings = settingsRes.data;
   if(isSindico()){
-    const { data: profs } = await supabase.from('profiles').select('*').order('nome');
+    const { data: profs } = await db.from('profiles').select('*').order('nome');
     state.profiles = profs || [];
   }
 }
 
 function subscribeRealtime(){
-  supabase.channel('estoque-changes')
+  db.channel('estoque-changes')
     .on('postgres_changes', { event:'*', schema:'public', table:'items' }, async ()=>{ await loadAll(); renderRoot(); })
     .on('postgres_changes', { event:'*', schema:'public', table:'movements' }, async ()=>{ await loadAll(); renderRoot(); })
     .on('postgres_changes', { event:'*', schema:'public', table:'settings' }, async ()=>{ await loadAll(); renderRoot(); })
@@ -212,7 +224,7 @@ function itemsComStatus(){
 function renderRoot(){
   const root = document.getElementById('root');
   if(!session){ root.innerHTML = renderAuth(); attachAuthHandlers(); return; }
-  if(!profile){ root.innerHTML = '<div class="loading-note">Carregando perfil…</div>'; return; }
+  if(!profile){ root.innerHTML = '<div class="auth-wrap"><div class="auth-card"><h1>Perfil não encontrado</h1><p class="sub">Você entrou, mas não há perfil para esta conta. Confirme que o schema.sql foi executado no Supabase (antes de criar a conta).</p><button class="btn" id="logoutBtn2">Sair</button></div></div>'; const b=document.getElementById('logoutBtn2'); if(b) b.onclick=async()=>{ await db.auth.signOut(); session=null; renderRoot(); }; return; }
   root.innerHTML = renderApp();
   attachAppHandlers();
 }
@@ -247,7 +259,7 @@ function attachAuthHandlers(){
     const f = new FormData(form);
     authMsg = null;
     if(authMode==='signup'){
-      const { error } = await supabase.auth.signUp({
+      const { error } = await db.auth.signUp({
         email: f.get('email'), password: f.get('senha'),
         options: { data: { nome: f.get('nome') } }
       });
@@ -255,7 +267,7 @@ function attachAuthHandlers(){
       authMsg = {type:'ok', text:'Conta criada. Verifique seu e-mail se a confirmação estiver ativada, depois entre.'};
       authMode = 'login'; renderRoot(); return;
     }else{
-      const { error } = await supabase.auth.signInWithPassword({ email: f.get('email'), password: f.get('senha') });
+      const { error } = await db.auth.signInWithPassword({ email: f.get('email'), password: f.get('senha') });
       if(error){ authMsg = {type:'error', text: error.message}; renderRoot(); return; }
       authMsg = null;
       await afterLogin();
@@ -502,7 +514,7 @@ function attachAppHandlers(){
     b.onclick = ()=>{ activeTab = b.dataset.tab; editingItemId=null; renderRoot(); };
   });
   const logoutBtn = document.getElementById('logoutBtn');
-  if(logoutBtn) logoutBtn.onclick = async ()=>{ await supabase.auth.signOut(); session=null; profile=null; renderRoot(); };
+  if(logoutBtn) logoutBtn.onclick = async ()=>{ await db.auth.signOut(); session=null; profile=null; renderRoot(); };
 
   const itemForm = document.getElementById('itemForm');
   if(itemForm){
@@ -514,8 +526,8 @@ function attachAppHandlers(){
         estoque_atual: Number(f.get('estoque_atual')), estoque_minimo: Number(f.get('estoque_minimo'))
       };
       let error;
-      if(editingItemId){ ({ error } = await supabase.from('items').update(data).eq('id', editingItemId)); }
-      else{ ({ error } = await supabase.from('items').insert(data)); }
+      if(editingItemId){ ({ error } = await db.from('items').update(data).eq('id', editingItemId)); }
+      else{ ({ error } = await db.from('items').insert(data)); }
       if(error){ alert('Erro ao salvar item: '+error.message); return; }
       editingItemId = null;
       await loadAll(); renderRoot();
@@ -531,7 +543,7 @@ function attachAppHandlers(){
     btn.onclick = async ()=>{
       if(btn.disabled) return;
       if(!confirm('Excluir este item?')) return;
-      const { error } = await supabase.from('items').delete().eq('id', btn.dataset.delItem);
+      const { error } = await db.from('items').delete().eq('id', btn.dataset.delItem);
       if(error){ alert('Erro ao excluir: '+error.message); return; }
       await loadAll(); renderRoot();
     };
@@ -556,10 +568,10 @@ function attachAppHandlers(){
         nota_fiscal: f.get('nota_fiscal')||'', valor: f.get('valor') ? Number(f.get('valor')) : null,
         observacao: f.get('observacao')||'', created_by: session.user.id
       };
-      const { error: e1 } = await supabase.from('movements').insert(mov);
+      const { error: e1 } = await db.from('movements').insert(mov);
       if(e1){ alert('Erro ao registrar movimentação: '+e1.message); return; }
       const novoEstoque = tipo==='entrada' ? item.estoque_atual + quantidade : Math.max(0, item.estoque_atual - quantidade);
-      const { error: e2 } = await supabase.from('items').update({ estoque_atual: novoEstoque }).eq('id', itemId);
+      const { error: e2 } = await db.from('items').update({ estoque_atual: novoEstoque }).eq('id', itemId);
       if(e2){ alert('Movimentação salva, mas houve erro ao atualizar o estoque: '+e2.message); }
       await loadAll(); renderRoot();
     };
@@ -574,11 +586,11 @@ function attachAppHandlers(){
       if(!mov) return;
       if(!confirm('Excluir esta movimentação? O estoque do item será ajustado de volta.')) return;
       const item = state.items.find(i=>i.id===mov.item_id);
-      const { error: e1 } = await supabase.from('movements').delete().eq('id', mov.id);
+      const { error: e1 } = await db.from('movements').delete().eq('id', mov.id);
       if(e1){ alert('Erro ao excluir: '+e1.message); return; }
       if(item){
         const novoEstoque = mov.tipo==='entrada' ? Math.max(0, item.estoque_atual - mov.quantidade) : item.estoque_atual + mov.quantidade;
-        await supabase.from('items').update({ estoque_atual: novoEstoque }).eq('id', item.id);
+        await db.from('items').update({ estoque_atual: novoEstoque }).eq('id', item.id);
       }
       await loadAll(); renderRoot();
     };
@@ -598,7 +610,7 @@ function attachAppHandlers(){
         dias_atencao: Math.max(1, Number(f.get('dias_atencao'))||20),
         dias_critico: Math.max(1, Number(f.get('dias_critico'))||7)
       };
-      const { error } = await supabase.from('settings').update(upd).eq('id',1);
+      const { error } = await db.from('settings').update(upd).eq('id',1);
       if(error){ alert('Erro ao salvar parâmetros: '+error.message); return; }
       await loadAll(); renderRoot();
     };
@@ -606,7 +618,7 @@ function attachAppHandlers(){
 
   document.querySelectorAll('[data-role-select]').forEach(sel=>{
     sel.onchange = async ()=>{
-      const { error } = await supabase.from('profiles').update({ papel: sel.value }).eq('id', sel.dataset.roleSelect);
+      const { error } = await db.from('profiles').update({ papel: sel.value }).eq('id', sel.dataset.roleSelect);
       if(error){ alert('Erro ao alterar papel: '+error.message); await loadAll(); renderRoot(); return; }
       await loadAll(); renderRoot();
     };
