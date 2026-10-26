@@ -568,11 +568,9 @@ function attachAppHandlers(){
         nota_fiscal: f.get('nota_fiscal')||'', valor: f.get('valor') ? Number(f.get('valor')) : null,
         observacao: f.get('observacao')||'', created_by: session.user.id
       };
+      // O estoque do item é atualizado automaticamente pelo banco (trigger).
       const { error: e1 } = await db.from('movements').insert(mov);
       if(e1){ alert('Erro ao registrar movimentação: '+e1.message); return; }
-      const novoEstoque = tipo==='entrada' ? item.estoque_atual + quantidade : Math.max(0, item.estoque_atual - quantidade);
-      const { error: e2 } = await db.from('items').update({ estoque_atual: novoEstoque }).eq('id', itemId);
-      if(e2){ alert('Movimentação salva, mas houve erro ao atualizar o estoque: '+e2.message); }
       await loadAll(); renderRoot();
     };
     const tipoSelect = document.getElementById('movTipo');
@@ -585,13 +583,9 @@ function attachAppHandlers(){
       const mov = state.movements.find(m=>m.id===btn.dataset.delMov);
       if(!mov) return;
       if(!confirm('Excluir esta movimentação? O estoque do item será ajustado de volta.')) return;
-      const item = state.items.find(i=>i.id===mov.item_id);
+      // O banco reverte o efeito no estoque automaticamente (trigger).
       const { error: e1 } = await db.from('movements').delete().eq('id', mov.id);
       if(e1){ alert('Erro ao excluir: '+e1.message); return; }
-      if(item){
-        const novoEstoque = mov.tipo==='entrada' ? Math.max(0, item.estoque_atual - mov.quantidade) : item.estoque_atual + mov.quantidade;
-        await db.from('items').update({ estoque_atual: novoEstoque }).eq('id', item.id);
-      }
       await loadAll(); renderRoot();
     };
   });
