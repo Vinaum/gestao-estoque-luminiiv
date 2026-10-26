@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Estoque de Manutenção — Condomínio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#e9e6de; --surface:#ffffff; --rail:#182524; --rail-ink:#c9d3ce;
+    --ink:#1c2b2a; --muted:#5b6b68; --border:#d9d4c6;
+    --accent:#c1502e; --accent-soft:#f3ded4;
+    --warn:#e0942f; --warn-soft:#faedd6;
+    --ok:#2f6e5e; --ok-soft:#dfeae5; --radius:6px;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--bg); color:var(--ink); font-family:'IBM Plex Sans', sans-serif; font-size:14px; line-height:1.5; }
+  h1,h2,h3{ font-family:'Space Grotesk', sans-serif; margin:0; letter-spacing:-0.01em; }
+  .num{ font-family:'IBM Plex Mono', monospace; }
+  .app{ display:flex; min-height:100vh; }
+  .rail{ width:200px; flex-shrink:0; background:var(--rail); color:var(--rail-ink); padding:22px 14px; display:flex; flex-direction:column; gap:2px; }
+  .rail-title{ font-size:15px; color:#fff; margin-bottom:4px; padding:0 8px; }
+  .rail-sub{ font-size:11.5px; color:#8a9c97; padding:0 8px; margin-bottom:8px; }
+  .rail-who{ font-size:11.5px; color:#8a9c97; padding:0 8px; margin-bottom:20px; }
+  .rail-who b{ color:#dfe8e4; }
+  .rail button{ all:unset; cursor:pointer; padding:9px 10px; border-radius:var(--radius); font-size:13.5px; color:var(--rail-ink); display:flex; align-items:center; gap:9px; }
+  .rail button:hover{ background:#243634; }
+  .rail button.active{ background:#2c413e; color:#fff; font-weight:500; }
+  .rail button .dot{ width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.5;flex-shrink:0; }
+  .rail .badge{ margin-left:auto; background:var(--accent); color:#fff; font-size:10.5px; font-family:'IBM Plex Mono',monospace; padding:1px 6px; border-radius:20px; }
+  .rail-foot{ margin-top:auto; font-size:11.5px; padding-top:12px; border-top:1px solid #2b3d3a; }
+  .rail-foot button{ padding:8px 10px; }
+  .main{ flex:1; padding:30px 36px 60px; max-width:1080px; }
+  .page-head{ margin-bottom:22px; display:flex; justify-content:space-between; align-items:flex-start; gap:20px;}
+  .page-head p{ color:var(--muted); margin:4px 0 0; font-size:13.5px; }
+  .role-note{ font-size:12px; color:var(--muted); background:var(--surface); border:1px solid var(--border); padding:6px 12px; border-radius:20px; white-space:nowrap; }
+  .cards{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:26px; }
+  .card{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; }
+  .card .k{ font-size:11.5px; color:var(--muted); }
+  .card .v{ font-size:26px; font-family:'Space Grotesk',sans-serif; margin-top:4px; }
+  .card.crit .v{ color:var(--accent); } .card.warn .v{ color:var(--warn); }
+  .panel{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px 22px; margin-bottom:20px; }
+  .panel h3{ font-size:15px; margin-bottom:14px; }
+  table{ width:100%; border-collapse:collapse; }
+  th{ text-align:left; font-size:11px; color:var(--muted); font-weight:500; padding:6px 10px; border-bottom:1px solid var(--border); }
+  td{ padding:9px 10px; border-bottom:1px solid #eee9dc; font-size:13.5px; vertical-align:middle; }
+  tr:last-child td{ border-bottom:none; }
+  tr.row-crit{ background:var(--accent-soft); } tr.row-warn{ background:var(--warn-soft); }
+  .status-pill{ display:inline-flex; align-items:center; gap:5px; font-size:11.5px; padding:2px 9px; border-radius:20px; font-weight:500; }
+  .status-ok{ background:var(--ok-soft); color:var(--ok); } .status-warn{ background:var(--warn-soft); color:#96631a; } .status-crit{ background:var(--accent-soft); color:var(--accent); }
+  .role-pill{ font-size:11px; padding:2px 8px; border-radius:20px; background:#eee9dc; color:var(--muted); }
+  button.btn{ all:unset; cursor:pointer; background:var(--ink); color:#fff; padding:8px 14px; border-radius:var(--radius); font-size:13px; font-weight:500; }
+  button.btn:hover{ opacity:.88; }
+  button.btn.ghost{ background:transparent; color:var(--ink); border:1px solid var(--border); }
+  button.btn.danger{ background:var(--accent); }
+  button.btn:disabled{ opacity:.4; cursor:not-allowed; }
+  .toolbar{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:10px; flex-wrap:wrap;}
+  form.inline-form{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-top:14px; align-items:end; }
+  .field{ display:flex; flex-direction:column; gap:5px; }
+  .field label{ font-size:11.5px; color:var(--muted); }
+  .field input, .field select, .field textarea{ font-family:inherit; font-size:13.5px; padding:8px 9px; border:1px solid var(--border); border-radius:var(--radius); background:#fdfcf9; color:var(--ink); }
+  .field textarea{ resize:vertical; min-height:38px; }
+  .form-actions{ grid-column:1/-1; display:flex; gap:8px; margin-top:2px; }
+  .empty{ color:var(--muted); font-size:13px; padding:20px 6px; text-align:center; }
+  .icon-btn{ all:unset; cursor:pointer; color:var(--muted); font-size:12px; padding:3px 6px; }
+  .icon-btn:hover{ color:var(--ink); }
+  .icon-btn:disabled{ opacity:.3; cursor:not-allowed; }
+  .tag{ font-size:11px; background:#eee9dc; padding:2px 8px; border-radius:20px; color:var(--muted); }
+  .tabs-mini{ display:flex; gap:6px; margin-bottom:16px; }
+  .tabs-mini button{ all:unset; cursor:pointer; font-size:12.5px; padding:6px 12px; border-radius:20px; border:1px solid var(--border); color:var(--muted); }
+  .tabs-mini button.active{ background:var(--ink); color:#fff; border-color:var(--ink); }
+  .loading-note{ color:var(--muted); font-size:13px; padding:40px; text-align:center; }
+  .hidden{ display:none !important; }
+  .readonly-note{ font-size:12.5px; color:var(--muted); background:#f4f1e9; border:1px dashed var(--border); padding:8px 12px; border-radius:var(--radius); margin-bottom:14px;}
+
+  /* Auth screen */
+  .auth-wrap{ min-height:100vh; display:flex; align-items:center; justify-content:center; }
+  .auth-card{ width:340px; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:30px 28px; }
+  .auth-card h1{ font-size:19px; margin-bottom:4px; }
+  .auth-card p.sub{ color:var(--muted); font-size:13px; margin:0 0 20px; }
+  .auth-card .field{ margin-bottom:12px; }
+  .auth-card button.btn{ width:100%; text-align:center; margin-top:6px; padding:10px; }
+  .auth-toggle{ text-align:center; margin-top:16px; font-size:12.5px; color:var(--muted); }
+  .auth-toggle a{ color:var(--ink); cursor:pointer; text-decoration:underline; }
+  .auth-error{ background:var(--accent-soft); color:var(--accent); font-size:12.5px; padding:8px 10px; border-radius:var(--radius); margin-bottom:12px; }
+  .auth-ok{ background:var(--ok-soft); color:var(--ok); font-size:12.5px; padding:8px 10px; border-radius:var(--radius); margin-bottom:12px; }
+
+  @media (max-width: 780px){
+    .app{ flex-direction:column; }
+    .rail{ width:100%; flex-direction:row; overflow-x:auto; padding:12px; }
+    .rail-title,.rail-sub,.rail-who{ display:none; }
+    .rail-foot{ margin-top:0; border-top:none; padding-top:0; }
+    .rail button{ white-space:nowrap; }
+    .main{ padding:20px; }
+    .cards{ grid-template-columns:repeat(2,1fr); }
+    .page-head{ flex-direction:column; }
+  }
+</style>
+</head>
+<body>
+
+<div id="root"><div class="loading-note">Carregando…</div></div>
+
+<script>
+/* ======================================================================
+   1) CONFIGURAÇÃO — troque pelos dados do seu projeto Supabase
+   (Project Settings → API, no painel do Supabase)
+   ====================================================================== */
+const SUPABASE_URL = 'https://zyjhxtglifevvxjxptic.supabase.co';
+const SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp5amh4dGdsaWZldnZ4anhwdGljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwMjY5NDksImV4cCI6MjEwODYwMjk0OX0.bYaaUqhLUrMTCBHc3rFBBx-sDaPnxLXwOYJ0m3pO2Vs;
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const CATEGORIAS = ['Elétrica','Hidráulica','Limpeza','Jardinagem','Pintura','Segurança','Ferramentas','Outros'];
+const UNIDADES = ['un','L','kg','m','cx','par','rolo'];
+const PAPEL_LABEL = { sindico:'Síndico', gestor:'Gestor / zelador', morador:'Morador' };
+
+let session = null;
+let profile = null;
+let state = { items: [], movements: [], settings: { dias_atencao:20, dias_critico:7, meses_media:6 }, profiles: [] };
+let activeTab = 'dashboard';
+let editingItemId = null;
+let movFilter = 'todos';
+let authMode = 'login'; // 'login' | 'signup'
+let authMsg = null;
+
+function canWrite(){ return profile && (profile.papel==='sindico' || profile.papel==='gestor'); }
+function isSindico(){ return profile && profile.papel==='sindico'; }
+
+/* ---------------- boot ---------------- */
+async function boot(){
+  const { data } = await supabase.auth.getSession();
+  session = data.session;
+  supabase.auth.onAuthStateChange((_event, s)=>{
+    session = s;
+    if(!s){ profile=null; renderRoot(); }
+  });
+  if(session){ await afterLogin(); } else { renderRoot(); }
+}
+
+async function afterLogin(){
+  await loadProfile();
+  await loadAll();
+  subscribeRealtime();
+  renderRoot();
+}
+
+async function loadProfile(){
+  const { data, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+  if(!error) profile = data;
+}
+
+async function loadAll(){
+  const [itemsRes, movRes, settingsRes] = await Promise.all([
+    supabase.from('items').select('*').order('nome'),
+    supabase.from('movements').select('*').order('data', {ascending:false}),
+    supabase.from('settings').select('*').eq('id',1).single()
+  ]);
+  state.items = itemsRes.data || [];
+  state.movements = movRes.data || [];
+  if(settingsRes.data) state.settings = settingsRes.data;
+  if(isSindico()){
+    const { data: profs } = await supabase.from('profiles').select('*').order('nome');
+    state.profiles = profs || [];
+  }
+}
+
+function subscribeRealtime(){
+  supabase.channel('estoque-changes')
+    .on('postgres_changes', { event:'*', schema:'public', table:'items' }, async ()=>{ await loadAll(); renderRoot(); })
+    .on('postgres_changes', { event:'*', schema:'public', table:'movements' }, async ()=>{ await loadAll(); renderRoot(); })
+    .on('postgres_changes', { event:'*', schema:'public', table:'settings' }, async ()=>{ await loadAll(); renderRoot(); })
+    .subscribe();
+}
+
+/* ---------------- cálculos (iguais à versão anterior, snake_case) ---------------- */
+function monthKey(d){ const dt = new Date(d); return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0'); }
+
+function consumoMedioMensal(itemId){
+  const meses = state.settings.meses_media || 6;
+  const hoje = new Date();
+  const chaves = [];
+  for(let i=0;i<meses;i++){ const d = new Date(hoje.getFullYear(), hoje.getMonth()-i, 1); chaves.push(monthKey(d)); }
+  const somaPorMes = {}; chaves.forEach(c => somaPorMes[c] = 0);
+  state.movements.filter(m => m.item_id===itemId && m.tipo==='saida').forEach(m=>{
+    const k = monthKey(m.data); if(k in somaPorMes) somaPorMes[k] += Number(m.quantidade);
+  });
+  return Object.values(somaPorMes).reduce((a,b)=>a+b,0) / meses;
+}
+function diasRestantes(item){
+  const consumo = consumoMedioMensal(item.id);
+  if(consumo <= 0) return Infinity;
+  return (item.estoque_atual / consumo) * 30;
+}
+function statusItem(item){
+  const dias = diasRestantes(item);
+  const { dias_critico, dias_atencao } = state.settings;
+  if(item.estoque_atual <= item.estoque_minimo || dias <= dias_critico) return 'crit';
+  if(dias <= dias_atencao) return 'warn';
+  return 'ok';
+}
+function fmtDias(d){ return d===Infinity ? '—' : Math.max(0,Math.round(d))+' d'; }
+function fmtNum(n){ return Number(n).toLocaleString('pt-BR', {maximumFractionDigits:2}); }
+function fmtDataBR(iso){ const [y,m,d] = iso.split('-'); return `${d}/${m}/${y}`; }
+function itemsComStatus(){
+  return state.items.map(it => ({ ...it, _status: statusItem(it), _dias: diasRestantes(it), _consumo: consumoMedioMensal(it.id) }));
+}
+
+/* ---------------- root render: auth ou app ---------------- */
+function renderRoot(){
+  const root = document.getElementById('root');
+  if(!session){ root.innerHTML = renderAuth(); attachAuthHandlers(); return; }
+  if(!profile){ root.innerHTML = '<div class="loading-note">Carregando perfil…</div>'; return; }
+  root.innerHTML = renderApp();
+  attachAppHandlers();
+}
+
+/* ---------------- tela de login/cadastro ---------------- */
+function renderAuth(){
+  const isSignup = authMode==='signup';
+  return `
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <h1>Estoque de manutenção</h1>
+      <p class="sub">${isSignup ? 'Criar uma conta' : 'Entrar na sua conta'}</p>
+      ${authMsg && authMsg.type==='error' ? `<div class="auth-error">${authMsg.text}</div>` : ''}
+      ${authMsg && authMsg.type==='ok' ? `<div class="auth-ok">${authMsg.text}</div>` : ''}
+      <form id="authForm">
+        ${isSignup ? `<div class="field"><label>Nome</label><input name="nome" required placeholder="Seu nome"></div>` : ''}
+        <div class="field"><label>E-mail</label><input type="email" name="email" required placeholder="voce@email.com"></div>
+        <div class="field"><label>Senha</label><input type="password" name="senha" required minlength="6" placeholder="••••••••"></div>
+        <button class="btn" type="submit">${isSignup ? 'Criar conta' : 'Entrar'}</button>
+      </form>
+      <div class="auth-toggle">
+        ${isSignup ? 'Já tem conta? <a id="toLogin">Entrar</a>' : 'Ainda não tem conta? <a id="toSignup">Criar conta</a>'}
+      </div>
+    </div>
+  </div>`;
+}
+
+function attachAuthHandlers(){
+  const form = document.getElementById('authForm');
+  form.onsubmit = async (e)=>{
+    e.preventDefault();
+    const f = new FormData(form);
+    authMsg = null;
+    if(authMode==='signup'){
+      const { error } = await supabase.auth.signUp({
+        email: f.get('email'), password: f.get('senha'),
+        options: { data: { nome: f.get('nome') } }
+      });
+      if(error){ authMsg = {type:'error', text: error.message}; renderRoot(); return; }
+      authMsg = {type:'ok', text:'Conta criada. Verifique seu e-mail se a confirmação estiver ativada, depois entre.'};
+      authMode = 'login'; renderRoot(); return;
+    }else{
+      const { error } = await supabase.auth.signInWithPassword({ email: f.get('email'), password: f.get('senha') });
+      if(error){ authMsg = {type:'error', text: error.message}; renderRoot(); return; }
+      authMsg = null;
+      await afterLogin();
+    }
+  };
+  const toSignup = document.getElementById('toSignup');
+  if(toSignup) toSignup.onclick = ()=>{ authMode='signup'; authMsg=null; renderRoot(); };
+  const toLogin = document.getElementById('toLogin');
+  if(toLogin) toLogin.onclick = ()=>{ authMode='login'; authMsg=null; renderRoot(); };
+}
+
+/* ---------------- app (autenticado) ---------------- */
+function renderApp(){
+  const alertCount = itemsComStatus().filter(i=>i._status==='crit'||i._status==='warn').length;
+  const tabs = [
+    ['dashboard','Painel'], ['itens','Itens'], ['movimentos','Movimentações'],
+    ['consumo','Consumo médio'], ['alertas','Alertas']
+  ];
+  if(isSindico()) tabs.push(['usuarios','Usuários']);
+
+  return `
+  <div class="app">
+    <nav class="rail">
+      <div class="rail-title">Estoque</div>
+      <div class="rail-sub">Manutenção do condomínio</div>
+      <div class="rail-who">Logado como<br><b>${profile.nome || session.user.email}</b> · ${PAPEL_LABEL[profile.papel]}</div>
+      ${tabs.map(([id,label])=>`
+        <button data-tab="${id}" class="${activeTab===id?'active':''}">
+          <span class="dot"></span>${label}
+          ${id==='alertas' && alertCount>0 ? `<span class="badge">${alertCount}</span>` : ''}
+        </button>`).join('')}
+      <div class="rail-foot"><button id="logoutBtn" class="ghost-link">Sair</button></div>
+    </nav>
+    <main class="main">
+      ${ activeTab==='dashboard' ? renderDashboard()
+       : activeTab==='itens' ? renderItens()
+       : activeTab==='movimentos' ? renderMovimentos()
+       : activeTab==='consumo' ? renderConsumo()
+       : activeTab==='alertas' ? renderAlertas()
+       : activeTab==='usuarios' ? renderUsuarios() : '' }
+    </main>
+  </div>`;
+}
+
+function roleNote(){
+  if(canWrite()) return '';
+  return `<div class="readonly-note">Seu papel é <b>morador</b>: você pode visualizar tudo, mas o registro e a edição são feitos pelo síndico ou gestor.</div>`;
+}
+
+/* ---- Dashboard ---- */
+function renderDashboard(){
+  const items = itemsComStatus();
+  const crit = items.filter(i=>i._status==='crit');
+  const warn = items.filter(i=>i._status==='warn');
+  const recentMovs = [...state.movements].sort((a,b)=> b.data.localeCompare(a.data)).slice(0,6);
+  const gastosMes = state.movements.filter(m=> m.tipo==='entrada' && monthKey(m.data)===monthKey(new Date()) && m.valor)
+    .reduce((s,m)=> s + Number(m.valor||0), 0);
+  return `
+    <div class="page-head"><div><h1>Painel do estoque</h1><p>Visão geral dos itens de manutenção do condomínio.</p></div></div>
+    <div class="cards">
+      <div class="card"><div class="k">Itens cadastrados</div><div class="v num">${items.length}</div></div>
+      <div class="card crit"><div class="k">Em nível crítico</div><div class="v num">${crit.length}</div></div>
+      <div class="card warn"><div class="k">Em atenção</div><div class="v num">${warn.length}</div></div>
+      <div class="card"><div class="k">Compras este mês</div><div class="v num">R$ ${fmtNum(gastosMes)}</div></div>
+    </div>
+    <div class="panel">
+      <h3>Itens que precisam de reposição</h3>
+      ${ (crit.length+warn.length)===0 ? `<div class="empty">Nenhum item em alerta no momento.</div>` : `
+      <table><tr><th>Item</th><th>Estoque</th><th>Mínimo</th><th>Consumo médio/mês</th><th>Estimativa</th><th>Status</th></tr>
+      ${[...crit,...warn].map(rowAlerta).join('')}</table>`}
+    </div>
+    <div class="panel">
+      <h3>Últimas movimentações</h3>
+      ${ recentMovs.length===0 ? `<div class="empty">Nenhuma movimentação registrada ainda.</div>` : `
+      <table><tr><th>Data</th><th>Item</th><th>Tipo</th><th>Qtd.</th><th>Nota fiscal</th></tr>
+      ${recentMovs.map(m=>{
+        const item = state.items.find(i=>i.id===m.item_id);
+        return `<tr><td class="num">${fmtDataBR(m.data)}</td><td>${item?item.nome:'—'}</td>
+          <td>${m.tipo==='entrada'?'Entrada':'Saída'}</td>
+          <td class="num">${fmtNum(m.quantidade)} ${item?item.unidade:''}</td>
+          <td>${m.nota_fiscal || '—'}</td></tr>`;
+      }).join('')}</table>`}
+    </div>`;
+}
+function rowAlerta(i){
+  const cls = i._status==='crit' ? 'row-crit' : 'row-warn';
+  const pill = i._status==='crit' ? `<span class="status-pill status-crit">Crítico</span>` : `<span class="status-pill status-warn">Atenção</span>`;
+  return `<tr class="${cls}">
+    <td>${i.nome}</td><td class="num">${fmtNum(i.estoque_atual)} ${i.unidade}</td>
+    <td class="num">${fmtNum(i.estoque_minimo)} ${i.unidade}</td>
+    <td class="num">${fmtNum(i._consumo)} ${i.unidade}</td>
+    <td class="num">${fmtDias(i._dias)}</td><td>${pill}</td></tr>`;
+}
+
+/* ---- Itens ---- */
+function renderItens(){
+  const items = itemsComStatus();
+  const editing = editingItemId ? state.items.find(i=>i.id===editingItemId) : null;
+  const write = canWrite();
+  return `
+    <div class="page-head"><div><h1>Itens de manutenção</h1><p>Cadastre os itens, o estoque atual e o mínimo aceitável.</p></div></div>
+    ${roleNote()}
+    ${write ? `
+    <div class="panel">
+      <h3>${editing ? 'Editar item' : 'Novo item'}</h3>
+      <form id="itemForm" class="inline-form">
+        <div class="field"><label>Nome</label><input name="nome" required value="${editing?editing.nome:''}" placeholder="Ex.: Lâmpada LED 9W"></div>
+        <div class="field"><label>Categoria</label><select name="categoria">${CATEGORIAS.map(c=>`<option ${editing&&editing.categoria===c?'selected':''}>${c}</option>`).join('')}</select></div>
+        <div class="field"><label>Unidade</label><select name="unidade">${UNIDADES.map(u=>`<option ${editing&&editing.unidade===u?'selected':''}>${u}</option>`).join('')}</select></div>
+        <div class="field"><label>Estoque atual</label><input type="number" step="0.01" min="0" name="estoque_atual" required value="${editing?editing.estoque_atual:''}"></div>
+        <div class="field"><label>Estoque mínimo</label><input type="number" step="0.01" min="0" name="estoque_minimo" required value="${editing?editing.estoque_minimo:''}"></div>
+        <div class="form-actions">
+          <button type="submit" class="btn">${editing ? 'Salvar alterações' : 'Adicionar item'}</button>
+          ${editing ? `<button type="button" class="btn ghost" id="cancelEdit">Cancelar</button>` : ''}
+        </div>
+      </form>
+    </div>` : ''}
+    <div class="panel">
+      <h3>Todos os itens (${items.length})</h3>
+      ${items.length===0 ? `<div class="empty">Nenhum item cadastrado.</div>` : `
+      <table><tr><th>Item</th><th>Categoria</th><th>Estoque</th><th>Mínimo</th><th>Status</th>${write?'<th></th>':''}</tr>
+      ${items.map(i=>`
+        <tr class="${i._status==='crit'?'row-crit':i._status==='warn'?'row-warn':''}">
+          <td>${i.nome}</td><td><span class="tag">${i.categoria}</span></td>
+          <td class="num">${fmtNum(i.estoque_atual)} ${i.unidade}</td>
+          <td class="num">${fmtNum(i.estoque_minimo)} ${i.unidade}</td>
+          <td>${i._status==='crit'?'<span class="status-pill status-crit">Crítico</span>':i._status==='warn'?'<span class="status-pill status-warn">Atenção</span>':'<span class="status-pill status-ok">Ok</span>'}</td>
+          ${write ? `<td><button class="icon-btn" data-edit-item="${i.id}">Editar</button>
+          <button class="icon-btn" data-del-item="${i.id}" ${isSindico()?'':'disabled title="Só o síndico pode excluir"'}>Excluir</button></td>` : ''}
+        </tr>`).join('')}</table>`}
+    </div>`;
+}
+
+/* ---- Movimentos ---- */
+function renderMovimentos(){
+  const list = [...state.movements].sort((a,b)=> b.data.localeCompare(a.data));
+  const filtered = movFilter==='todos' ? list : list.filter(m=>m.tipo===movFilter);
+  const itemOptions = state.items.map(i=>`<option value="${i.id}">${i.nome}</option>`).join('');
+  const write = canWrite();
+  return `
+    <div class="page-head"><div><h1>Movimentações de estoque</h1><p>Registre entradas (compras) e saídas (uso) dos itens.</p></div></div>
+    ${roleNote()}
+    ${write ? `
+    <div class="panel">
+      <h3>Nova movimentação</h3>
+      <form id="movForm" class="inline-form">
+        <div class="field"><label>Item</label><select name="item_id" required>${itemOptions || '<option value="">Cadastre um item primeiro</option>'}</select></div>
+        <div class="field"><label>Tipo</label><select name="tipo" id="movTipo">
+          <option value="entrada">Entrada (compra)</option><option value="saida">Saída (uso)</option></select></div>
+        <div class="field"><label>Quantidade</label><input type="number" step="0.01" min="0.01" name="quantidade" required></div>
+        <div class="field"><label>Data</label><input type="date" name="data" value="${new Date().toISOString().slice(0,10)}" required></div>
+        <div class="field"><label>Responsável</label><input name="responsavel" placeholder="Zelador, síndico..."></div>
+        <div class="field nf-field"><label>Fornecedor</label><input name="fornecedor" placeholder="Nome do prestador"></div>
+        <div class="field nf-field"><label>Nº nota fiscal</label><input name="nota_fiscal" placeholder="Ex.: NF 4521"></div>
+        <div class="field nf-field"><label>Valor (R$)</label><input type="number" step="0.01" min="0" name="valor" placeholder="0,00"></div>
+        <div class="field" style="grid-column:1/-1;"><label>Observação</label><textarea name="observacao" placeholder="Opcional"></textarea></div>
+        <div class="form-actions"><button type="submit" class="btn">Registrar movimentação</button></div>
+      </form>
+    </div>` : ''}
+    <div class="panel">
+      <div class="toolbar"><h3 style="margin:0;">Histórico (${filtered.length})</h3>
+        <div class="tabs-mini">
+          <button data-movfilter="todos" class="${movFilter==='todos'?'active':''}">Todos</button>
+          <button data-movfilter="entrada" class="${movFilter==='entrada'?'active':''}">Entradas</button>
+          <button data-movfilter="saida" class="${movFilter==='saida'?'active':''}">Saídas</button>
+        </div>
+      </div>
+      ${filtered.length===0 ? `<div class="empty">Nenhuma movimentação nesse filtro.</div>` : `
+      <table><tr><th>Data</th><th>Item</th><th>Tipo</th><th>Qtd.</th><th>Fornecedor / NF</th><th>Valor</th><th>Resp.</th>${isSindico()?'<th></th>':''}</tr>
+      ${filtered.map(m=>{
+        const item = state.items.find(i=>i.id===m.item_id);
+        return `<tr><td class="num">${fmtDataBR(m.data)}</td><td>${item ? item.nome : '<em>item removido</em>'}</td>
+          <td>${m.tipo==='entrada'?'Entrada':'Saída'}</td>
+          <td class="num">${fmtNum(m.quantidade)} ${item?item.unidade:''}</td>
+          <td>${m.fornecedor||'—'}${m.nota_fiscal?' · '+m.nota_fiscal:''}</td>
+          <td class="num">${m.valor?('R$ '+fmtNum(m.valor)):'—'}</td>
+          <td>${m.responsavel||'—'}</td>
+          ${isSindico() ? `<td><button class="icon-btn" data-del-mov="${m.id}">Excluir</button></td>` : ''}
+        </tr>`;
+      }).join('')}</table>`}
+    </div>`;
+}
+
+/* ---- Consumo médio ---- */
+function renderConsumo(){
+  const items = itemsComStatus();
+  return `
+    <div class="page-head"><div><h1>Consumo médio mensal</h1><p>Calculado automaticamente pela média de saídas dos últimos ${state.settings.meses_media} meses.</p></div></div>
+    ${isSindico() ? `
+    <div class="panel">
+      <form id="settingsForm" class="inline-form" style="margin-top:0;">
+        <div class="field"><label>Meses considerados na média</label><input type="number" min="1" max="24" name="meses_media" value="${state.settings.meses_media}"></div>
+        <div class="field"><label>Alerta de atenção (dias restantes)</label><input type="number" min="1" name="dias_atencao" value="${state.settings.dias_atencao}"></div>
+        <div class="field"><label>Alerta crítico (dias restantes)</label><input type="number" min="1" name="dias_critico" value="${state.settings.dias_critico}"></div>
+        <div class="form-actions"><button type="submit" class="btn ghost">Salvar parâmetros</button></div>
+      </form>
+    </div>` : ''}
+    <div class="panel">
+      <h3>Consumo por item</h3>
+      ${items.length===0 ? `<div class="empty">Nenhum item cadastrado.</div>` : `
+      <table><tr><th>Item</th><th>Estoque atual</th><th>Consumo médio/mês</th><th>Dias restantes estimados</th></tr>
+      ${items.map(i=>`<tr class="${i._status==='crit'?'row-crit':i._status==='warn'?'row-warn':''}">
+        <td>${i.nome}</td><td class="num">${fmtNum(i.estoque_atual)} ${i.unidade}</td>
+        <td class="num">${fmtNum(i._consumo)} ${i.unidade}</td><td class="num">${fmtDias(i._dias)}</td></tr>`).join('')}
+      </table>`}
+    </div>`;
+}
+
+/* ---- Alertas ---- */
+function renderAlertas(){
+  const items = itemsComStatus().filter(i=>i._status!=='ok').sort((a,b)=> a._dias - b._dias);
+  return `
+    <div class="page-head"><div><h1>Alertas de reposição</h1><p>Itens abaixo do estoque mínimo ou perto de acabar, segundo o consumo médio.</p></div></div>
+    <div class="panel">
+      ${items.length===0 ? `<div class="empty">Nenhum alerta ativo. Estoque sob controle.</div>` : `
+      <table><tr><th>Item</th><th>Estoque</th><th>Mínimo</th><th>Consumo médio/mês</th><th>Estimativa</th><th>Status</th></tr>
+      ${items.map(rowAlerta).join('')}</table>`}
+    </div>`;
+}
+
+/* ---- Usuários (só síndico) ---- */
+function renderUsuarios(){
+  return `
+    <div class="page-head"><div><h1>Usuários e papéis</h1><p>Defina quem é síndico, gestor (zelador) ou morador.</p></div></div>
+    <div class="panel">
+      ${state.profiles.length===0 ? `<div class="empty">Nenhum usuário encontrado.</div>` : `
+      <table><tr><th>Nome</th><th>Papel</th><th></th></tr>
+      ${state.profiles.map(p=>`
+        <tr>
+          <td>${p.nome || '(sem nome)'} ${p.id===profile.id ? '<span class="role-pill">você</span>' : ''}</td>
+          <td><span class="role-pill">${PAPEL_LABEL[p.papel]}</span></td>
+          <td>
+            <select data-role-select="${p.id}" ${p.id===profile.id ? 'disabled title="Você não pode alterar seu próprio papel"' : ''}>
+              ${Object.keys(PAPEL_LABEL).map(k=>`<option value="${k}" ${p.papel===k?'selected':''}>${PAPEL_LABEL[k]}</option>`).join('')}
+            </select>
+          </td>
+        </tr>`).join('')}</table>`}
+    </div>`;
+}
+
+/* ---------------- handlers ---------------- */
+function attachAppHandlers(){
+  document.querySelectorAll('.rail button[data-tab]').forEach(b=>{
+    b.onclick = ()=>{ activeTab = b.dataset.tab; editingItemId=null; renderRoot(); };
+  });
+  const logoutBtn = document.getElementById('logoutBtn');
+  if(logoutBtn) logoutBtn.onclick = async ()=>{ await supabase.auth.signOut(); session=null; profile=null; renderRoot(); };
+
+  const itemForm = document.getElementById('itemForm');
+  if(itemForm){
+    itemForm.onsubmit = async (e)=>{
+      e.preventDefault();
+      const f = new FormData(itemForm);
+      const data = {
+        nome: f.get('nome').trim(), categoria: f.get('categoria'), unidade: f.get('unidade'),
+        estoque_atual: Number(f.get('estoque_atual')), estoque_minimo: Number(f.get('estoque_minimo'))
+      };
+      let error;
+      if(editingItemId){ ({ error } = await supabase.from('items').update(data).eq('id', editingItemId)); }
+      else{ ({ error } = await supabase.from('items').insert(data)); }
+      if(error){ alert('Erro ao salvar item: '+error.message); return; }
+      editingItemId = null;
+      await loadAll(); renderRoot();
+    };
+  }
+  const cancelEdit = document.getElementById('cancelEdit');
+  if(cancelEdit) cancelEdit.onclick = ()=>{ editingItemId=null; renderRoot(); };
+
+  document.querySelectorAll('[data-edit-item]').forEach(btn=>{
+    btn.onclick = ()=>{ editingItemId = btn.dataset.editItem; renderRoot(); window.scrollTo(0,0); };
+  });
+  document.querySelectorAll('[data-del-item]').forEach(btn=>{
+    btn.onclick = async ()=>{
+      if(btn.disabled) return;
+      if(!confirm('Excluir este item?')) return;
+      const { error } = await supabase.from('items').delete().eq('id', btn.dataset.delItem);
+      if(error){ alert('Erro ao excluir: '+error.message); return; }
+      await loadAll(); renderRoot();
+    };
+  });
+
+  const movForm = document.getElementById('movForm');
+  if(movForm){
+    movForm.onsubmit = async (e)=>{
+      e.preventDefault();
+      const f = new FormData(movForm);
+      const itemId = f.get('item_id');
+      const tipo = f.get('tipo');
+      const quantidade = Number(f.get('quantidade'));
+      const item = state.items.find(i=>i.id===itemId);
+      if(!item) return;
+      if(tipo==='saida' && quantidade > item.estoque_atual){
+        if(!confirm(`A saída (${quantidade} ${item.unidade}) é maior que o estoque atual (${item.estoque_atual} ${item.unidade}). Registrar mesmo assim?`)) return;
+      }
+      const mov = {
+        item_id: itemId, tipo, quantidade, data: f.get('data'),
+        responsavel: f.get('responsavel')||'', fornecedor: f.get('fornecedor')||'',
+        nota_fiscal: f.get('nota_fiscal')||'', valor: f.get('valor') ? Number(f.get('valor')) : null,
+        observacao: f.get('observacao')||'', created_by: session.user.id
+      };
+      const { error: e1 } = await supabase.from('movements').insert(mov);
+      if(e1){ alert('Erro ao registrar movimentação: '+e1.message); return; }
+      const novoEstoque = tipo==='entrada' ? item.estoque_atual + quantidade : Math.max(0, item.estoque_atual - quantidade);
+      const { error: e2 } = await supabase.from('items').update({ estoque_atual: novoEstoque }).eq('id', itemId);
+      if(e2){ alert('Movimentação salva, mas houve erro ao atualizar o estoque: '+e2.message); }
+      await loadAll(); renderRoot();
+    };
+    const tipoSelect = document.getElementById('movTipo');
+    const toggleNfFields = ()=>{ const show = tipoSelect.value === 'entrada'; document.querySelectorAll('.nf-field').forEach(el=> el.style.display = show ? 'flex' : 'none'); };
+    tipoSelect.onchange = toggleNfFields; toggleNfFields();
+  }
+
+  document.querySelectorAll('[data-del-mov]').forEach(btn=>{
+    btn.onclick = async ()=>{
+      const mov = state.movements.find(m=>m.id===btn.dataset.delMov);
+      if(!mov) return;
+      if(!confirm('Excluir esta movimentação? O estoque do item será ajustado de volta.')) return;
+      const item = state.items.find(i=>i.id===mov.item_id);
+      const { error: e1 } = await supabase.from('movements').delete().eq('id', mov.id);
+      if(e1){ alert('Erro ao excluir: '+e1.message); return; }
+      if(item){
+        const novoEstoque = mov.tipo==='entrada' ? Math.max(0, item.estoque_atual - mov.quantidade) : item.estoque_atual + mov.quantidade;
+        await supabase.from('items').update({ estoque_atual: novoEstoque }).eq('id', item.id);
+      }
+      await loadAll(); renderRoot();
+    };
+  });
+
+  document.querySelectorAll('[data-movfilter]').forEach(btn=>{
+    btn.onclick = ()=>{ movFilter = btn.dataset.movfilter; renderRoot(); };
+  });
+
+  const settingsForm = document.getElementById('settingsForm');
+  if(settingsForm){
+    settingsForm.onsubmit = async (e)=>{
+      e.preventDefault();
+      const f = new FormData(settingsForm);
+      const upd = {
+        meses_media: Math.max(1, Number(f.get('meses_media'))||6),
+        dias_atencao: Math.max(1, Number(f.get('dias_atencao'))||20),
+        dias_critico: Math.max(1, Number(f.get('dias_critico'))||7)
+      };
+      const { error } = await supabase.from('settings').update(upd).eq('id',1);
+      if(error){ alert('Erro ao salvar parâmetros: '+error.message); return; }
+      await loadAll(); renderRoot();
+    };
+  }
+
+  document.querySelectorAll('[data-role-select]').forEach(sel=>{
+    sel.onchange = async ()=>{
+      const { error } = await supabase.from('profiles').update({ papel: sel.value }).eq('id', sel.dataset.roleSelect);
+      if(error){ alert('Erro ao alterar papel: '+error.message); await loadAll(); renderRoot(); return; }
+      await loadAll(); renderRoot();
+    };
+  });
+}
+
+boot();
+</script>
+</body>
+</html>
