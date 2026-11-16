@@ -122,7 +122,7 @@ window.addEventListener('unhandledrejection', e => showFatal((e.reason && e.reas
 
 const CATEGORIAS = ['Elétrica','Hidráulica','Limpeza','Jardinagem','Pintura','Segurança','Ferramentas','Outros'];
 const UNIDADES = ['un','L','kg','m','cx','par','rolo'];
-const PAPEL_LABEL = { sindico:'Síndico', gestor:'Gestor / zelador', morador:'Morador' };
+const PAPEL_LABEL = { superadmin:'Superadmin', sindico:'Síndico', gestor:'Gestor / zelador', morador:'Morador' };
 
 let session = null;
 let profile = null;
@@ -134,8 +134,9 @@ let authMode = 'login'; // 'login' | 'signup' | 'forgot'
 let recovering = false; // true quando a pessoa chegou pelo link de redefinição de senha
 let authMsg = null;
 
-function canWrite(){ return profile && (profile.papel==='sindico' || profile.papel==='gestor'); }
-function isSindico(){ return profile && profile.papel==='sindico'; }
+function canWrite(){ return profile && ['superadmin','sindico','gestor'].includes(profile.papel); }
+function isSuperadmin(){ return profile && profile.papel==='superadmin'; }
+function isSindico(){ return profile && (profile.papel==='sindico' || profile.papel==='superadmin'); } // síndico ou superadmin
 
 /* ---------------- boot ---------------- */
 async function boot(){
@@ -560,9 +561,16 @@ function renderAlertas(){
 }
 
 /* ---- Usuários (só síndico) ---- */
+// Quais papéis o usuário logado pode atribuir a uma pessoa (o banco confere de novo)
+function papeisPermitidos(alvo){
+  if(isSuperadmin()) return Object.keys(PAPEL_LABEL);
+  if(alvo.papel==='gestor' || alvo.papel==='morador') return ['gestor','morador'];
+  return []; // síndico não mexe em síndico nem superadmin
+}
+
 function renderUsuarios(){
   return `
-    <div class="page-head"><div><h1>Usuários e papéis</h1><p>Defina quem é síndico, gestor (zelador) ou morador.</p></div></div>
+    <div class="page-head"><div><h1>Usuários e papéis</h1><p>${isSuperadmin() ? 'Defina quem é superadmin, síndico, gestor (zelador) ou morador.' : 'Defina quem é gestor (zelador) ou morador.'}</p></div></div>
     <div class="panel">
       ${state.profiles.length===0 ? `<div class="empty">Nenhum usuário encontrado.</div>` : `
       <table><tr><th>Nome</th><th>Papel</th><th></th></tr>
@@ -571,9 +579,14 @@ function renderUsuarios(){
           <td>${p.nome || '(sem nome)'} ${p.id===profile.id ? '<span class="role-pill">você</span>' : ''}</td>
           <td><span class="role-pill">${PAPEL_LABEL[p.papel]}</span></td>
           <td>
-            <select data-role-select="${p.id}" ${p.id===profile.id ? 'disabled title="Você não pode alterar seu próprio papel"' : ''}>
-              ${Object.keys(PAPEL_LABEL).map(k=>`<option value="${k}" ${p.papel===k?'selected':''}>${PAPEL_LABEL[k]}</option>`).join('')}
-            </select>
+            ${(()=>{
+              const opcoes = papeisPermitidos(p);
+              const travado = p.id===profile.id || opcoes.length===0;
+              const motivo = p.id===profile.id ? 'Você não pode alterar seu próprio papel' : 'Só o superadmin altera este papel';
+              return `<select data-role-select="${p.id}" ${travado ? `disabled title="${motivo}"` : ''}>
+                ${(travado ? Object.keys(PAPEL_LABEL) : opcoes).map(k=>`<option value="${k}" ${p.papel===k?'selected':''}>${PAPEL_LABEL[k]}</option>`).join('')}
+              </select>`;
+            })()}
           </td>
         </tr>`).join('')}</table>`}
     </div>`;
