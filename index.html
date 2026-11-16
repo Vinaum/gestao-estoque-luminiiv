@@ -130,7 +130,8 @@ let state = { items: [], movements: [], settings: { dias_atencao:20, dias_critic
 let activeTab = 'dashboard';
 let editingItemId = null;
 let movFilter = 'todos';
-let authMode = 'login'; // 'login' | 'signup'
+let authMode = 'login'; // 'login' | 'signup' | 'forgot'
+let recovering = false; // true quando a pessoa chegou pelo link de redefinição de senha
 let authMsg = null;
 
 function canWrite(){ return profile && (profile.papel==='sindico' || profile.papel==='gestor'); }
@@ -145,11 +146,14 @@ async function boot(){
   const { data, error } = await db.auth.getSession();
   if(error) return showFatal('Erro ao conectar ao Supabase: '+error.message);
   session = data.session;
-  db.auth.onAuthStateChange((_event, s)=>{
+  if(/type=recovery/.test(window.location.hash)) recovering = true;
+  db.auth.onAuthStateChange((event, s)=>{
     session = s;
+    if(event==='PASSWORD_RECOVERY'){ recovering = true; renderRoot(); return; }
     if(!s){ profile=null; renderRoot(); }
   });
-  if(session){ await afterLogin(); } else { renderRoot(); }
+  if(recovering){ renderRoot(); }
+  else if(session){ await afterLogin(); } else { renderRoot(); }
 }
 
 async function afterLogin(){
@@ -223,6 +227,7 @@ function itemsComStatus(){
 /* ---------------- root render: auth ou app ---------------- */
 function renderRoot(){
   const root = document.getElementById('root');
+  if(recovering){ root.innerHTML = renderRecovery(); attachRecoveryHandlers(); return; }
   if(!session){ root.innerHTML = renderAuth(); attachAuthHandlers(); return; }
   if(!profile){ root.innerHTML = '<div class="auth-wrap"><div class="auth-card"><h1>Perfil não encontrado</h1><p class="sub">Você entrou, mas não há perfil para esta conta. Confirme que o schema.sql foi executado no Supabase (antes de criar a conta).</p><button class="btn" id="logoutBtn2">Sair</button></div></div>'; const b=document.getElementById('logoutBtn2'); if(b) b.onclick=async()=>{ await db.auth.signOut(); session=null; renderRoot(); }; return; }
   root.innerHTML = renderApp();
@@ -232,6 +237,7 @@ function renderRoot(){
 /* ---------------- tela de login/cadastro ---------------- */
 function renderAuth(){
   const isSignup = authMode==='signup';
+  if(authMode==='forgot') return renderForgot();
   return `
   <div class="auth-wrap">
     <div class="auth-card">
@@ -245,6 +251,7 @@ function renderAuth(){
         <div class="field"><label>Senha</label><input type="password" name="senha" required minlength="6" placeholder="••••••••"></div>
         <button class="btn" type="submit">${isSignup ? 'Criar conta' : 'Entrar'}</button>
       </form>
+      ${isSignup ? '' : '<div class="auth-toggle" style="margin-top:12px;"><a id="toForgot">Esqueci minha senha</a></div>'}
       <div class="auth-toggle">
         ${isSignup ? 'Já tem conta? <a id="toLogin">Entrar</a>' : 'Ainda não tem conta? <a id="toSignup">Criar conta</a>'}
       </div>
@@ -252,7 +259,69 @@ function renderAuth(){
   </div>`;
 }
 
+function renderForgot(){
+  return `
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <h1>Redefinir senha</h1>
+      <p class="sub">Informe o e-mail da sua conta. Enviaremos um link para criar uma nova senha.</p>
+      ${authMsg && authMsg.type==='error' ? `<div class="auth-error">${authMsg.text}</div>` : ''}
+      ${authMsg && authMsg.type==='ok' ? `<div class="auth-ok">${authMsg.text}</div>` : ''}
+      <form id="forgotForm">
+        <div class="field"><label>E-mail</label><input type="email" name="email" required placeholder="voce@email.com"></div>
+        <button class="btn" type="submit">Enviar link</button>
+      </form>
+      <div class="auth-toggle"><a id="backToLogin">Voltar para o login</a></div>
+    </div>
+  </div>`;
+}
+
+function renderRecovery(){
+  return `
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <h1>Nova senha</h1>
+      <p class="sub">Escolha uma nova senha para a sua conta.</p>
+      ${authMsg && authMsg.type==='error' ? `<div class="auth-error">${authMsg.text}</div>` : ''}
+      <form id="recoveryForm">
+        <div class="field"><label>Nova senha</label><input type="password" name="senha" required minlength="6" placeholder="Mínimo de 6 caracteres"></div>
+        <div class="field"><label>Repita a nova senha</label><input type="password" name="senha2" required minlength="6"></div>
+        <button class="btn" type="submit">Salvar nova senha</button>
+      </form>
+    </div>
+  </div>`;
+}
+
+function attachRecoveryHandlers(){
+  const form = document.getElementById('recoveryForm');
+  form.onsubmit = async (e)=>{
+    e.preventDefault();
+    const f = new FormData(form);
+    if(f.get('senha') !== f.get('senha2')){ authMsg = {type:'error', text:'As duas senhas não são iguais.'}; renderRoot(); return; }
+    const { error } = await db.auth.updateUser({ password: f.get('senha') });
+    if(error){ authMsg = {type:'error', text: error.message}; renderRoot(); return; }
+    authMsg = null; recovering = false;
+    history.replaceState(null, '', window.location.pathname);
+    const { data } = await db.auth.getSession();
+    session = data.session;
+    if(session){ await afterLogin(); } else { authMode='login'; renderRoot(); }
+  };
+}
+
 function attachAuthHandlers(){
+  if(authMode==='forgot'){
+    const ff = document.getElementById('forgotForm');
+    ff.onsubmit = async (e)=>{
+      e.preventDefault();
+      const email = new FormData(ff).get('email');
+      const { error } = await db.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + window.location.pathname });
+      authMsg = error ? {type:'error', text: error.message}
+                      : {type:'ok', text:'Se o e-mail estiver cadastrado, você receberá um link em instantes. Olhe também o spam.'};
+      renderRoot();
+    };
+    document.getElementById('backToLogin').onclick = ()=>{ authMode='login'; authMsg=null; renderRoot(); };
+    return;
+  }
   const form = document.getElementById('authForm');
   form.onsubmit = async (e)=>{
     e.preventDefault();
@@ -273,6 +342,8 @@ function attachAuthHandlers(){
       await afterLogin();
     }
   };
+  const toForgot = document.getElementById('toForgot');
+  if(toForgot) toForgot.onclick = ()=>{ authMode='forgot'; authMsg=null; renderRoot(); };
   const toSignup = document.getElementById('toSignup');
   if(toSignup) toSignup.onclick = ()=>{ authMode='signup'; authMsg=null; renderRoot(); };
   const toLogin = document.getElementById('toLogin');
