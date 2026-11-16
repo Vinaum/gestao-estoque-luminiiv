@@ -4,7 +4,7 @@ Sistema simples para controlar o estoque de itens de manutenção de um condomí
 o que entra (compras, com fornecedor, nota fiscal e valor), o que sai (uso),
 o consumo médio mensal e alertas de itens perto de acabar.
 
-- **Site:** `https://SEU-USUARIO.github.io/NOME-DO-REPOSITORIO/`
+- **Site:** `https://Vinaum.github.io/gestao-estoque-luminiiv/`
 - **Tecnologias:** HTML, CSS e JavaScript (tudo em um único `index.html`) + [Supabase](https://supabase.com) (banco de dados PostgreSQL e login)
 - **Hospedagem:** GitHub Pages
 
@@ -14,6 +14,7 @@ o consumo médio mensal e alertas de itens perto de acabar.
 |---|---|
 | `index.html` | O site inteiro: telas, regras de cálculo e conexão com o Supabase |
 | `schema.sql` | Cria as tabelas, as regras de acesso por papel e o gatilho que atualiza o estoque |
+| `atualizacao-superadmin.sql` | Só o bloco do papel superadmin (para projetos que já existem) |
 | `README.md` | Este guia |
 | `.gitignore` | Lista do que o Git não deve enviar (arquivos de sistema, segredos) |
 
@@ -21,11 +22,12 @@ o consumo médio mensal e alertas de itens perto de acabar.
 
 | Papel | O que pode fazer |
 |---|---|
-| **Síndico** | Tudo: itens, movimentações, excluir, parâmetros de alerta e gerenciar usuários |
+| **Superadmin** | Tudo que o síndico faz, e é o único que cria ou altera síndicos e outros superadmins |
+| **Síndico** | Itens, movimentações, excluir, parâmetros de alerta, e define quem é gestor ou morador |
 | **Gestor / zelador** | Cadastrar e editar itens e registrar entradas e saídas. Não exclui nem muda configurações |
 | **Morador** | Somente visualizar |
 
-Quem cria uma conta entra como **morador**. O síndico muda o papel na aba **Usuários**.
+Quem cria uma conta entra como **morador**. Na aba **Usuários**, o síndico alterna entre gestor e morador, e o superadmin define qualquer papel. Ninguém altera o próprio papel pelo app.
 As permissões são aplicadas pelo próprio banco (Row Level Security), não apenas escondidas na tela.
 
 ## Como funciona o alerta
@@ -49,9 +51,9 @@ O síndico pode alterar esses valores na aba **Consumo médio**.
    ```
 5. Envie os arquivos para o GitHub e ative **Settings → Pages** (branch `main`, pasta `/ (root)`).
 6. No Supabase, em **Authentication → URL Configuration**, coloque o endereço do GitHub Pages em **Site URL** e também em **Redirect URLs**.
-7. Abra o site, crie sua conta e promova-se a síndico no SQL Editor:
+7. Abra o site, crie sua conta e promova-se a superadmin no SQL Editor:
    ```sql
-   update public.profiles set papel = 'sindico' where id =
+   update public.profiles set papel = 'superadmin' where id =
      (select id from auth.users where email = 'seu-email@exemplo.com');
    ```
    Saia do app e entre de novo.

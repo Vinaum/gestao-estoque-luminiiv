@@ -157,17 +157,30 @@ async function boot(){
   else if(session){ await afterLogin(); } else { renderRoot(); }
 }
 
-async function afterLogin(){
+function comTempo(promessa, ms, rotulo){
+  return Promise.race([
+    promessa,
+    new Promise((_, rej)=> setTimeout(()=> rej(new Error('Tempo esgotado ao '+rotulo+'. Verifique a internet e se o projeto do Supabase está ativo (não pausado).')), ms))
+  ]);
+}
 
-  await loadProfile();
-  await loadAll();
-  subscribeRealtime();
-  renderRoot();
+async function afterLogin(){
+  const root = document.getElementById('root');
+  root.innerHTML = '<div class="loading-note">Entrando…</div>';
+  try{
+    await comTempo(loadProfile(), 15000, 'carregar o perfil');
+    await comTempo(loadAll(), 15000, 'carregar os dados');
+    subscribeRealtime();
+    renderRoot();
+  }catch(e){
+    showFatal(e.message || String(e));
+  }
 }
 
 async function loadProfile(){
   const { data, error } = await db.from('profiles').select('*').eq('id', session.user.id).single();
-  if(!error) profile = data;
+  if(error) throw new Error('Não foi possível ler o seu perfil: '+error.message+' (código '+(error.code||'?')+')');
+  profile = data;
 }
 
 async function loadAll(){
@@ -176,6 +189,8 @@ async function loadAll(){
     db.from('movements').select('*').order('data', {ascending:false}),
     db.from('settings').select('*').eq('id',1).single()
   ]);
+  const falha = itemsRes.error || movRes.error || settingsRes.error;
+  if(falha) throw new Error('Erro ao ler os dados: '+falha.message+' (código '+(falha.code||'?')+')');
   state.items = itemsRes.data || [];
   state.movements = movRes.data || [];
   if(settingsRes.data) state.settings = settingsRes.data;
