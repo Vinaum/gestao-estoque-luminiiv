@@ -51,6 +51,7 @@ def main():
             ok('650,00' in pg.inner_text('#pagina h3 >> nth=0'), 'total do ano R$ 650,00')
             ok(pg.evaluate("Chart.getChart('g-forn').data.labels") == ['Higiene Total', 'Elétrica Luz', 'Sem fornecedor'], 'fornecedores em ordem de valor, "Sem fornecedor" incluído')
             ok(pg.evaluate("Chart.getChart('g-cat').data.labels") == ['Limpeza', 'Elétrica', 'Outros'], 'categorias vêm dos itens das compras')
+            ok(pg.evaluate("Chart.getChart('g-cat').config.type") == 'pie', 'categorias em gráfico de pizza')
             pg.select_option('#f-forn', 'Higiene Total'); pg.wait_for_timeout(300)
             ok('400,00' in pg.inner_text('#pagina h3 >> nth=0') and pg.evaluate("Chart.getChart('g-mes').data.datasets[0].data[0]") == 300, 'filtro por fornecedor atualiza total e gráfico')
             pg.select_option('#f-forn', '')

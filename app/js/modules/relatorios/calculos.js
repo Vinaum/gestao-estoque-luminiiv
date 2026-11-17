@@ -57,3 +57,10 @@ export function filtrarCompras(compras, { mes = '', forn = '' } = {}) {
   return compras.filter((c) => (!mes || String(c.data_compra).slice(5, 7) === mes)
     && (!forn || (c.fornecedor || 'Sem fornecedor') === forn));
 }
+
+// Mantém as (n-1) maiores fatias e soma o resto em "Demais" (para o gráfico de pizza).
+export function fatiasPizza(lista, n = 8) {
+  if (lista.length <= n) return lista;
+  const topo = lista.slice(0, n - 1), resto = lista.slice(n - 1).reduce((s, x) => s + x.valor, 0);
+  return [...topo, { nome: 'Demais', valor: resto }];
+}
