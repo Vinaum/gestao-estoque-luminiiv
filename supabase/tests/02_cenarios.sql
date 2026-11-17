@@ -711,6 +711,61 @@ begin
 end $$;
 
 -- ============================================================
+-- Permissões do gestor: fornecedores (sem ativar/desativar) e leitura de gastos
+-- ============================================================
+do $$
+declare
+  v_a uuid := tests.id('condA'); v_f uuid; v_n_sind bigint; v_n_gest bigint; v_g_sind bigint; v_g_gest bigint; v_i_sind numeric; v_i_gest numeric;
+begin
+  raise notice '--- Permissões do gestor ---';
+  perform tests.login(tests.gest());
+  insert into public.fornecedores (condominio_id, nome) values (v_a, 'Forn do gestor') returning id into v_f;
+  perform tests.ok('P gestor cadastra fornecedor', v_f is not null);
+  update public.fornecedores set nome = 'Forn do gestor (editado)', telefone = '11999990000' where id = v_f;
+  perform tests.texto('P gestor edita dados do fornecedor', (select nome from public.fornecedores where id = v_f), 'Forn do gestor (editado)');
+  perform tests.erro('P gestor não desativa fornecedor', format('update public.fornecedores set ativo = false where id = %L', v_f), 'Só o síndico');
+  perform tests.erro('P gestor não cria fornecedor já inativo', format('insert into public.fornecedores (condominio_id, nome, ativo) values (%L, ''Nasce inativo'', false)', v_a), 'Só o síndico');
+  perform tests.ok('P fornecedor segue ativo depois da tentativa', (select ativo from public.fornecedores where id = v_f));
+  perform tests.erro('P gestor não apaga fornecedor', format('delete from public.fornecedores where id = %L', v_f), 'permission denied');
+  perform tests.logout();
+
+  perform tests.login(tests.sind());
+  update public.fornecedores set ativo = false where id = v_f;
+  perform tests.ok('P síndico desativa fornecedor', not (select ativo from public.fornecedores where id = v_f));
+  perform tests.logout();
+  perform tests.login(tests.gest());
+  perform tests.erro('P gestor não reativa fornecedor', format('update public.fornecedores set ativo = true where id = %L', v_f), 'Só o síndico');
+  update public.fornecedores set observacoes = 'editado inativo' where id = v_f;
+  perform tests.ok('P gestor ainda edita outros campos de fornecedor inativo', (select observacoes from public.fornecedores where id = v_f) = 'editado inativo');
+  perform tests.logout();
+  perform tests.login(tests.sind());
+  update public.fornecedores set ativo = true where id = v_f;
+  perform tests.ok('P síndico reativa fornecedor', (select ativo from public.fornecedores where id = v_f));
+  select count(*) into v_n_sind from public.v_compras where condominio_id = v_a;
+  select count(*) into v_g_sind from public.v_gastos where condominio_id = v_a;
+  select coalesce(sum(custo_total), 0) into v_i_sind from public.compra_itens ci join public.compras c on c.id = ci.compra_id where c.condominio_id = v_a;
+  perform tests.logout();
+
+  -- o gestor enxerga os mesmos números usados no painel e no relatório de gastos
+  perform tests.login(tests.gest());
+  select count(*) into v_n_gest from public.v_compras where condominio_id = v_a;
+  select count(*) into v_g_gest from public.v_gastos where condominio_id = v_a;
+  select coalesce(sum(custo_total), 0) into v_i_gest from public.compra_itens ci join public.compras c on c.id = ci.compra_id where c.condominio_id = v_a;
+  perform tests.ok('P há compras para comparar', v_n_sind > 0);
+  perform tests.igual('P gestor vê as mesmas compras que o síndico (v_compras)', v_n_gest, v_n_sind);
+  perform tests.igual('P gestor vê o mesmo gasto que o síndico (v_gastos)', v_g_gest, v_g_sind);
+  perform tests.igual('P gestor vê os mesmos custos dos itens de compra', v_i_gest, v_i_sind);
+  perform tests.erro('P gestor continua sem aprovar compra', format('select public.aprovar_compra(%L)', tests.id('compraB')), 'Sem permissão');
+  perform tests.logout();
+
+  perform tests.login(tests.mor());
+  perform tests.igual('P morador não vê compras', (select count(*) from public.v_compras where condominio_id = v_a), 0);
+  perform tests.igual('P morador não vê gastos', (select count(*) from public.v_gastos where condominio_id = v_a), 0);
+  perform tests.igual('P morador não vê fornecedores', (select count(*) from public.fornecedores where condominio_id = v_a), 0);
+  perform tests.logout();
+end $$;
+
+-- ============================================================
 -- Conferência final de consistência (todos os condomínios)
 -- ============================================================
 do $$

@@ -1,6 +1,6 @@
 import { h, raw, render, on } from '../../lib/html.js';
 import { db } from '../../lib/supabase.js';
-import { estado } from '../../lib/estado.js';
+import { estado, papelAtual } from '../../lib/estado.js';
 import { moeda, dataBR } from '../../lib/format.js';
 import { cnpjValido, formatarCnpj, emailValido, soDigitos } from '../../lib/validacao.js';
 import { aviso, janelaForm, janelaInfo, mensagemErro } from '../../lib/ui.js';
@@ -8,6 +8,8 @@ import { aviso, janelaForm, janelaInfo, mensagemErro } from '../../lib/ui.js';
 let forn = [], cats = [], vinculos = {}, raizPagina = null;
 let filtro = { texto: '', inativos: false };
 const cid = () => estado.condominioId;
+// Só o síndico (ou superadmin) ativa/desativa; o gestor cadastra e edita.
+const podeAtivar = () => ['sindico', 'superadmin'].includes(papelAtual());
 
 async function carregar() {
   const [f, c, v] = await Promise.all([
@@ -67,7 +69,7 @@ function formulario(f) {
       <div class="field"><label for="f-end">Endereço</label><input id="f-end" name="end" value="${v('endereco')}"></div>
       <div class="field"><label>Categorias que atende</label><div>${cats.map((c) => h`<label style="display:inline-block;margin:0 12px 4px 0"><input type="checkbox" name="cat_${c.id}" value="1" ${marcadas.has(c.id) ? raw('checked') : ''}> ${c.nome}</label>`)}</div></div>
       <div class="field"><label for="f-obs">Observações</label><textarea id="f-obs" name="obs" rows="2">${v('observacoes')}</textarea></div>
-      ${f ? h`<div class="field"><label><input type="checkbox" name="ativo" value="1" ${f.ativo ? raw('checked') : ''}> Fornecedor ativo</label></div>` : ''}`,
+      ${f && podeAtivar() ? h`<div class="field"><label><input type="checkbox" name="ativo" value="1" ${f.ativo ? raw('checked') : ''}> Fornecedor ativo</label></div>` : ''}`,
     aoEnviar: async (x) => {
       if (!x.nome.trim()) throw new Error('Informe o nome.');
       const cnpj = soDigitos(x.cnpj);
@@ -77,7 +79,7 @@ function formulario(f) {
         telefone: x.tel.trim() || null, email: x.email.trim() || null, endereco: x.end.trim() || null, observacoes: x.obs.trim() || null };
       let id = f?.id;
       if (f) {
-        dados.ativo = x.ativo === '1';
+        if (podeAtivar()) dados.ativo = x.ativo === '1';
         const { error } = await db.from('fornecedores').update(dados).eq('id', id);
         if (error) throw new Error(erroForn(error));
       } else {

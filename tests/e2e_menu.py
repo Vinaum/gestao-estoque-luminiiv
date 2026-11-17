@@ -14,11 +14,11 @@ def jwt(uid): return f"{b64({'alg':'HS256','typ':'JWT'})}.{b64({'sub':uid,'role'
 
 CASOS = {
   'gestor':   dict(uid='aaaaaaaa-0000-0000-0000-000000000003', super=False, conds=[(COND_A,'Cond A')], vinc={COND_A:'gestor'},
-                   menu=['Operação diária','Estoque atual','Configuração de estoque','Central de compras','Fornecedores','Consumo'], inicial='#/operacao'),
+                   menu=['Painel','Operação diária','Estoque atual','Configuração de estoque','Central de compras','Fornecedores','Consumo','Relatórios de gastos'], inicial='#/operacao'),
   'sindico':  dict(uid='aaaaaaaa-0000-0000-0000-000000000002', super=False, conds=[(COND_A,'Cond A')], vinc={COND_A:'sindico'},
-                   menu=['Painel do síndico','Aprovações','Operação diária','Estoque atual','Configuração de estoque','Central de compras','Fornecedores','Consumo','Relatórios de gastos','Usuários'], inicial='#/painel'),
+                   menu=['Painel','Aprovações','Operação diária','Estoque atual','Configuração de estoque','Central de compras','Fornecedores','Consumo','Relatórios de gastos','Usuários'], inicial='#/painel'),
   'superadmin': dict(uid='aaaaaaaa-0000-0000-0000-000000000001', super=True, conds=[(COND_A,'Cond A'),(COND_B,'Cond B')], vinc={},
-                   menu=['Painel do síndico','Aprovações','Operação diária','Estoque atual','Configuração de estoque','Central de compras','Fornecedores','Consumo','Relatórios de gastos','Usuários','Administração'], inicial='#/admin'),
+                   menu=['Painel','Aprovações','Operação diária','Estoque atual','Configuração de estoque','Central de compras','Fornecedores','Consumo','Relatórios de gastos','Usuários','Administração'], inicial='#/admin'),
   'morador':  dict(uid='aaaaaaaa-0000-0000-0000-000000000004', super=False, conds=[(COND_A,'Cond A')], vinc={COND_A:'morador'},
                    menu=['Início'], inicial='#/inicio'),
 }

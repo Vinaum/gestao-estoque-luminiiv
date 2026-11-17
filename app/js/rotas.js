@@ -4,7 +4,7 @@ const EQUIPE = ['gestor', 'sindico', 'superadmin'];
 const SINDICO = ['sindico', 'superadmin'];
 
 export const ROTAS = [
-  { id: 'painel',         titulo: 'Painel do síndico',      papeis: SINDICO, grupo: '', modulo: './modules/painel/painel.js' },
+  { id: 'painel',         titulo: 'Painel',                papeis: EQUIPE, grupo: '', modulo: './modules/painel/painel.js' },
   { id: 'aprovacoes',     titulo: 'Aprovações',             papeis: SINDICO, grupo: '', modulo: './modules/compras/aprovacoes.js' },
   { id: 'operacao',       titulo: 'Operação diária',        papeis: EQUIPE,  grupo: 'Estoque', modulo: './modules/operacao/operacao.js' },
   { id: 'estoque',        titulo: 'Estoque atual',          papeis: EQUIPE,  grupo: 'Estoque' , modulo: './modules/estoque/estoque.js' },
@@ -12,7 +12,7 @@ export const ROTAS = [
   { id: 'compras',        titulo: 'Central de compras',     papeis: EQUIPE,  grupo: 'Compras', modulo: './modules/compras/compras.js' },
   { id: 'fornecedores',   titulo: 'Fornecedores',           papeis: EQUIPE,  grupo: 'Compras', modulo: './modules/fornecedores/fornecedores.js' },
   { id: 'consumo',        titulo: 'Consumo',                papeis: EQUIPE,  grupo: 'Análises', modulo: './modules/relatorios/consumo.js' },
-  { id: 'gastos',         titulo: 'Relatórios de gastos',   papeis: SINDICO, grupo: 'Análises', modulo: './modules/relatorios/gastos.js' },
+  { id: 'gastos',         titulo: 'Relatórios de gastos',   papeis: EQUIPE, grupo: 'Análises', modulo: './modules/relatorios/gastos.js' },
   { id: 'usuarios',       titulo: 'Usuários',               papeis: SINDICO, grupo: 'Condomínio', modulo: './modules/usuarios/usuarios.js' },
   { id: 'admin',          titulo: 'Administração',          papeis: ['superadmin'], grupo: 'Sistema', modulo: './modules/admin/admin.js' },
   { id: 'inicio',         titulo: 'Início',                 papeis: ['morador'], grupo: '', modulo: './modules/boasvindas/boasvindas.js' },

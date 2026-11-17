@@ -3,7 +3,8 @@ import json, base64, subprocess, time, sys, os, re
 from urllib.parse import urlparse, parse_qs
 from playwright.sync_api import sync_playwright
 RAIZ=os.path.dirname(os.path.dirname(os.path.abspath(__file__))); PORTA=8781
-REF='aiuwreyhnubprlapkxli'; UID='00000000-0000-0000-0000-0000000000a2'
+REF='aiuwreyhnubprlapkxli'; PAPEL=os.environ.get('PAPEL_TESTE','sindico')
+UID={'sindico':'00000000-0000-0000-0000-0000000000a2','gestor':'00000000-0000-0000-0000-0000000000a3'}[PAPEL]
 D=json.load(open(os.path.join(RAIZ,'tests/fixtures/painel_dados.json')))
 COND=D['itens'][0]['condominio_id']
 def b64(d): return base64.urlsafe_b64encode(json.dumps(d).encode()).decode().rstrip('=')
@@ -23,10 +24,11 @@ def main():
                 def reply(x):
                     if 'object' in acc and isinstance(x,list): x=x[0] if x else None
                     route.fulfill(status=200,content_type='application/json',body=json.dumps(x),headers={'access-control-allow-origin':'*'})
-                if '/profiles' in u and 'id=eq.' in u: return reply([{'id':UID,'nome':'Síndico','superadmin':False}])
+                if '/profiles' in u and 'id=eq.' in u: return reply([{'id':UID,'nome':PAPEL,'superadmin':False}])
                 if '/profiles' in u: return reply([{'id':UID,'nome':'Síndico'},{'id':'00000000-0000-0000-0000-0000000000a3','nome':'Gestor'}])
                 if '/condominios' in u: return reply([{'id':COND,'nome':'Cond A','ativo':True}])
-                if '/membros' in u: return reply([{'condominio_id':COND,'papel':'sindico','ativo':True}])
+                if '/membros' in u: return reply([{'condominio_id':COND,'papel':PAPEL,'ativo':True}])
+                if '/fornecedores' in u: return reply([{'id':'f1','condominio_id':COND,'nome':'Forn Teste','ativo':True,'cnpj':None}])
                 if '/v_estoque_item' in u: return reply(D['itens'])
                 if '/v_lotes' in u: return reply(D['lotes'])
                 if '/v_saidas_mensal' in u: return reply(D['saidas'])
@@ -43,8 +45,9 @@ def main():
             pg.route(re.compile(r'https://fonts\..*'),lambda r:r.fulfill(status=200,body=''))
             sess={'access_token':jwt(UID),'refresh_token':'r','expires_in':3600,'expires_at':4102444800,'token_type':'bearer','user':{'id':UID,'email':'s@t.com','aud':'authenticated'}}
             pg.add_init_script(f"localStorage.setItem('sb-{REF}-auth-token', {json.dumps(json.dumps(sess))});")
-            pg.goto(f'http://localhost:{PORTA}/{os.environ.get("APP_CAMINHO", "app")}/index.html'); pg.wait_for_selector('.cards.oito',timeout=8000)
-            ok(pg.evaluate('location.hash')=='#/painel','síndico entra direto no painel')
+            base=f'http://localhost:{PORTA}/{os.environ.get("APP_CAMINHO", "app")}/index.html'
+            pg.goto(base+('#/painel' if PAPEL=='gestor' else '')); pg.wait_for_selector('.cards.oito',timeout=8000)
+            ok(pg.evaluate('location.hash')=='#/painel',PAPEL+' abre o painel')
             cards={c.locator('.k').inner_text():c.locator('.v').inner_text() for c in pg.locator('.cards .card').all()}
             ok(cards['Itens cadastrados']=='4' and cards['Para comprar']=='1' and cards['Esgotados']=='1' and cards['Em atenção']=='1','indicadores: 4 itens, 1 comprar, 1 esgotado, 1 em atenção')
             ok(cards['Vencidos ou a vencer em 30 dias']=='2','indicador de vencimentos = 2')
@@ -61,6 +64,15 @@ def main():
             ok('contagem física' in pg.locator('.panel',has_text='Ajustes recentes').inner_text(),'ajustes recentes com justificativa')
             ok(pg.locator('.panel',has_text='Consumo recente').locator('tbody tr').count()>=2,'consumo recente listado')
             ok(pg.locator('a[href="#/config-estoque"]').count()>=1 and pg.locator('a[href="#/operacao"]').count()>=1,'atalhos para configurar estoque e cadastrar item')
+            if PAPEL=='gestor':
+                ok(pg.locator('#pagina .cards a[href="#/aprovacoes"]').count()==0,'gestor vê o total de aprovações, mas sem link para aprovar')
+            else:
+                ok(pg.locator('#pagina .cards a[href="#/aprovacoes"]').count()==1,'síndico tem o link para aprovações')
+            pg.goto(base+'#/gastos'); pg.wait_for_selector('#pagina h2',timeout=8000)
+            ok(pg.evaluate('location.hash')=='#/gastos' and 'gasto' in pg.locator('#pagina h2').first.inner_text().lower(),PAPEL+' abre o relatório de gastos')
+            pg.goto(base+'#/fornecedores'); pg.wait_for_selector('[data-acao=editar]',timeout=8000); pg.click('[data-acao=editar]'); pg.wait_for_selector('.modal form')
+            tem=pg.locator('.modal input[name=ativo]').count()
+            ok(tem==(0 if PAPEL=='gestor' else 1),'edição de fornecedor: caixa "ativo" '+('ausente para o gestor' if PAPEL=='gestor' else 'presente para o síndico'))
             ok(not erros,'sem erros de script: %s'%erros); nav.close()
     finally: srv.terminate()
     print('RESULTADO:','FALHOU %s'%falhou if falhou else 'TUDO OK'); sys.exit(1 if falhou else 0)

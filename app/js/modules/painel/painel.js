@@ -1,6 +1,6 @@
 import { h, render } from '../../lib/html.js';
 import { db } from '../../lib/supabase.js';
-import { estado } from '../../lib/estado.js';
+import { estado, papelAtual } from '../../lib/estado.js';
 import { num, moeda, dataBR, dataHoraBR } from '../../lib/format.js';
 import { EFETIVADAS, MESES, periodoAtual, contarStatus, aComprar, alertasReposicao, emAtencao, vencimentos, gastos, comprasDoMes, topConsumo } from './calculos.js';
 
@@ -9,6 +9,7 @@ const FAIXA = { vencido: ['Vencido', 'status-crit'], curto_prazo: ['Até 30 dias
 export async function abrir(el) {
   const cid = estado.condominioId;
   const p = periodoAtual();
+  const podeAprovar = ['sindico', 'superadmin'].includes(papelAtual());
   const q = (t) => db.from(t).select('*').eq('condominio_id', cid);
   const [it, lt, cp, ag, cons, aj, sai] = await Promise.all([
     q('v_estoque_item').eq('ativo', true).order('nome'),
@@ -35,7 +36,7 @@ export async function abrir(el) {
   const nomeItem = (id) => porId[id]?.nome ?? '(item inativo)';
 
   render(el, h`
-    <div class="page-head"><div><h2>Painel do síndico</h2><p>Visão geral para decidir o que comprar, o que vence e quanto se gasta.</p></div>
+    <div class="page-head"><div><h2>Painel</h2><p>Visão geral para decidir o que comprar, o que vence e quanto se gasta.</p></div>
       <div class="atalhos"><a class="btn ghost" href="#/config-estoque">Configurar estoque</a><a class="btn" href="#/operacao">Cadastrar item</a></div></div>
 
     <div class="cards oito">
@@ -46,7 +47,7 @@ export async function abrir(el) {
       <div class="card ${venc30 ? 'crit' : ''}"><div class="k">Vencidos ou a vencer em 30 dias</div><div class="v">${venc30}</div></div>
       <div class="card"><div class="k">Gasto em ${nomeMes}</div><div class="v num" style="font-size:20px">${moeda(g.mes)}</div></div>
       <div class="card"><div class="k">Gasto em ${p.ano}</div><div class="v num" style="font-size:20px">${moeda(g.ano)}</div></div>
-      <div class="card ${ag.data.length ? 'warn' : ''}"><a href="#/aprovacoes"><div class="k">Compras aguardando aprovação</div><div class="v">${ag.data.length}</div></a></div>
+      <div class="card ${ag.data.length ? 'warn' : ''}">${podeAprovar ? h`<a href="#/aprovacoes"><div class="k">Compras aguardando aprovação</div><div class="v">${ag.data.length}</div></a>` : h`<div class="k">Compras aguardando aprovação</div><div class="v">${ag.data.length}</div>`}</div>
     </div>
     ${c.semEstoque ? h`<p class="dica" style="margin:-14px 0 20px">${c.semEstoque} item(ns) ainda sem estoque cadastrado — não entram nos alertas até receberem a primeira quantidade.</p>` : ''}
 

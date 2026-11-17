@@ -9,7 +9,7 @@ Aplicação web para o síndico e a comissão de um condomínio controlarem o es
 - **Saídas** com baixa automática do lote que vence primeiro (FEFO) ou do mais antigo (FIFO), sem permitir saldo negativo.
 - **Movimentações imutáveis**: erro se corrige por estorno ou ajuste, ambos com justificativa. Nada é apagado.
 - **Compras separadas do recebimento**: rascunho → aprovação do síndico → pedido → recebimento (parcial ou total, em vários lotes). Nota fiscal em PDF/JPG/PNG (até 5 MB) em armazenamento privado.
-- **Painel do síndico**: itens críticos, vencimentos, compras pendentes, gastos, cobertura de estoque.
+- **Painel** (síndico e gestor): itens críticos, vencimentos, compras pendentes, gastos, cobertura de estoque.
 - **Relatórios** de consumo e de gastos, com gráficos.
 - **Administração**: condomínios, usuários, convites (que podem ser editados ou cancelados) e papéis; diagnóstico de consistência do estoque; histórico de auditoria.
 
@@ -18,7 +18,7 @@ Aplicação web para o síndico e a comissão de um condomínio controlarem o es
 |---|---|
 | superadmin | Criar condomínios, definir síndicos, ver todos os condomínios, rodar diagnósticos |
 | síndico | Tudo do condomínio, inclusive **aprovar compras** e gerenciar usuários |
-| gestor (comissão) | Operar estoque, montar compras, fornecedores, consumo |
+| gestor (especialista em estoque) | Operar estoque, montar compras e receber, cadastrar e editar fornecedores (sem ativar/desativar), ver painel e gastos. Não aprova compras nem gerencia pessoas |
 | morador | Somente a tela inicial (sem acesso a estoque, compras ou fornecedores) |
 
 ## Como rodar localmente
@@ -37,7 +37,7 @@ app/            Interface (index.html, js/, assets/)
   js/lib/       Utilitários: HTML seguro, formatação, janelas, Supabase, estado
   js/modules/   Uma pasta por tela (operacao, estoque, compras, painel, relatorios, admin…)
 vendor/         Bibliotecas fixas (supabase-js, Chart.js) + SHA256SUMS
-supabase/       Banco: migrations/ (0001–0013), tests/, pendentes/
+supabase/       Banco: migrations/ (0001–0014), tests/, pendentes/
 tests/          Testes do front e auditoria de segurança
 docs/           Plano, mapa de testes e roteiro da virada
 ```
