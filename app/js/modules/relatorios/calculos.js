@@ -51,3 +51,9 @@ export function csvCompras(compras) {
     compras.map((c) => [c.data_compra.split('-').reverse().join('/'), c.fornecedor || '', c.numero_nf || '', c.status.replaceAll('_', ' '), dec(c.valor_total)]));
   return '﻿' + linhas.map((l) => l.map(cel).join(';')).join('\r\n');
 }
+
+// Filtra compras por mês ('01'..'12', '' = todos) e por fornecedor ('' = todos).
+export function filtrarCompras(compras, { mes = '', forn = '' } = {}) {
+  return compras.filter((c) => (!mes || String(c.data_compra).slice(5, 7) === mes)
+    && (!forn || (c.fornecedor || 'Sem fornecedor') === forn));
+}

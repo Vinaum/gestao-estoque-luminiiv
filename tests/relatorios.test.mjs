@@ -22,4 +22,10 @@ assert.deepEqual(c.gastosPorCategoria([{ compra_id: 1, item_id: 'a', custo_total
 const csv = c.csvCompras([{ data_compra: '2026-11-03', fornecedor: 'A;B "x"', numero_nf: '=1+1', status: 'pedido_realizado', valor_total: 1234.5 }]);
 assert.ok(csv.startsWith('﻿Data;Fornecedor;'));
 assert.ok(csv.includes('03/11/2026;"A;B ""x""";\'=1+1;pedido realizado;1234,50'), csv);   // aspas escapadas e fórmula neutralizada
+const fc = [{ data_compra: '2026-01-10', fornecedor: 'A' }, { data_compra: '2026-02-03', fornecedor: 'A' }, { data_compra: '2026-02-20', fornecedor: null }];
+assert.equal(c.filtrarCompras(fc).length, 3);
+assert.equal(c.filtrarCompras(fc, { mes: '02' }).length, 2);
+assert.equal(c.filtrarCompras(fc, { mes: '02', forn: 'A' }).length, 1);
+assert.equal(c.filtrarCompras(fc, { forn: 'Sem fornecedor' }).length, 1);
+assert.equal(c.filtrarCompras(fc, { mes: '12' }).length, 0);
 console.log('relatorios.test OK');

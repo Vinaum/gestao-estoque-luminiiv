@@ -15,8 +15,8 @@ ITENS = [dict(item_id=I1, nome='Papel toalha', unidade='cx', estoque_atual=4, ca
 COB = [dict(item_id=I1, cobertura_dias=20, situacao='ok'), dict(item_id=I2, cobertura_dias=0, situacao='sem_estoque'), dict(item_id=I3, cobertura_dias=None, situacao='sem_historico')]
 ano = hoje.year
 def vc(i, data, forn, val, st='recebido'): return dict(compra_id=i, condominio_id=CA, data_compra=data, fornecedor=forn, numero_nf='NF1' if i == 'c1' else '=cmd', status=st, valor_total=val)
-COMPRAS = [vc('c1', f'{ano}-01-10', 'Higiene Total', 300), vc('c2', f'{ano}-01-20', 'Elétrica Luz', 200, 'pedido_realizado'), vc('c3', f'{ano}-01-25', None, 50)]
-LINHAS = [dict(compra_id='c1', item_id=I1, custo_total=300), dict(compra_id='c2', item_id=I2, custo_total=200), dict(compra_id='c3', item_id=I3, custo_total=50)]
+COMPRAS = [vc('c1', f'{ano}-01-10', 'Higiene Total', 300), vc('c2', f'{ano}-01-20', 'Elétrica Luz', 200, 'pedido_realizado'), vc('c3', f'{ano}-01-25', None, 50), vc('c4', f'{ano}-02-10', 'Higiene Total', 100)]
+LINHAS = [dict(compra_id='c1', item_id=I1, custo_total=300), dict(compra_id='c2', item_id=I2, custo_total=200), dict(compra_id='c3', item_id=I3, custo_total=50), dict(compra_id='c4', item_id=I1, custo_total=100)]
 def tratar(u, q, m, corpo, acc):
     if '/profiles' in u: return [{'id': SIN, 'nome': 'Síndico', 'superadmin': False}]
     if '/condominios' in u: return [{'id': CA, 'nome': 'Cond A', 'ativo': True}]
@@ -48,12 +48,24 @@ def main():
             nav, pg, erros, ch = abrir(pw, PORTA, SIN, tratar, 'gastos', '#g-mes')
             esperar(pg, "window.Chart && Chart.getChart('g-mes') && Chart.getChart('g-forn') && Chart.getChart('g-cat')")
             ok(pg.evaluate("Chart.getChart('g-mes').data.datasets[0].data[0]") == 550, 'gráfico mensal: janeiro = R$ 550')
-            ok('550,00' in pg.inner_text('#pagina h3 >> nth=0'), 'total do ano R$ 550,00')
+            ok('650,00' in pg.inner_text('#pagina h3 >> nth=0'), 'total do ano R$ 650,00')
             ok(pg.evaluate("Chart.getChart('g-forn').data.labels") == ['Higiene Total', 'Elétrica Luz', 'Sem fornecedor'], 'fornecedores em ordem de valor, "Sem fornecedor" incluído')
             ok(pg.evaluate("Chart.getChart('g-cat').data.labels") == ['Limpeza', 'Elétrica', 'Outros'], 'categorias vêm dos itens das compras')
             pg.select_option('#f-forn', 'Higiene Total'); pg.wait_for_timeout(300)
-            ok('300,00' in pg.inner_text('#pagina h3 >> nth=0') and pg.evaluate("Chart.getChart('g-mes').data.datasets[0].data[0]") == 300, 'filtro por fornecedor atualiza total e gráfico')
+            ok('400,00' in pg.inner_text('#pagina h3 >> nth=0') and pg.evaluate("Chart.getChart('g-mes').data.datasets[0].data[0]") == 300, 'filtro por fornecedor atualiza total e gráfico')
             pg.select_option('#f-forn', '')
+            ok(pg.locator('#f-mes option').count() == 13, 'filtro de mês: todos + 12 meses')
+            pg.select_option('#f-mes', '01'); pg.wait_for_timeout(300)
+            ok('550,00' in pg.inner_text('#pagina h3 >> nth=0') and 'Janeiro' in pg.inner_text('#pagina h3 >> nth=0'), 'mês janeiro: total R$ 550,00')
+            ok(pg.evaluate("Chart.getChart('g-cat').data.labels") == ['Limpeza', 'Elétrica', 'Outros'] and pg.evaluate("Chart.getChart('g-cat').data.datasets[0].data")[0] == 300, 'categorias respeitam o mês (Limpeza 300, sem a compra de fevereiro)')
+            ok(pg.locator('#pagina tbody tr').count() == 4, 'tabela só com as 3 compras de janeiro + total')
+            pg.select_option('#f-mes', '02'); pg.wait_for_timeout(300)
+            ok('100,00' in pg.inner_text('#pagina h3 >> nth=0') and pg.evaluate("Chart.getChart('g-forn').data.labels") == ['Higiene Total'], 'mês fevereiro: só Higiene Total, R$ 100,00')
+            with pg.expect_download() as dm: pg.click('[data-acao=csv]')
+            ok(dm.value.suggested_filename == f'gastos-{ano}-02.csv' and '100,00' in open(dm.value.path(), encoding='utf-8').read() and '300,00' not in open(dm.value.path(), encoding='utf-8').read(), 'CSV do mês: nome gastos-AAAA-MM.csv e só as compras do mês')
+            pg.select_option('#f-mes', '03'); pg.wait_for_timeout(300)
+            ok('0,00' in pg.inner_text('#pagina h3 >> nth=0') and pg.locator('[data-acao=csv]').is_disabled(), 'mês sem compras: total zero e CSV desabilitado')
+            pg.select_option('#f-mes', '')
             with pg.expect_download() as d: pg.click('[data-acao=csv]')
             arq = d.value.path(); txt = open(arq, encoding='utf-8').read()
             ok(txt.startswith('﻿Data;Fornecedor;Nota fiscal') and "'=cmd" in txt and '300,00' in txt, 'CSV com cabeçalho, vírgula decimal e fórmula neutralizada')
