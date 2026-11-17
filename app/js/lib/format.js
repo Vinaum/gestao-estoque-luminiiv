@@ -8,3 +8,9 @@ export function dataBR(iso) {
 export const dataHoraBR = (iso) =>
   iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
 export const PAPEL_ROTULO = { superadmin: 'Superadmin', sindico: 'Síndico', gestor: 'Gestor', morador: 'Morador' };
+
+// Lê número digitado em formato brasileiro ("1,5" ou "1.5"). Devolve NaN se vazio/ inválido.
+export function lerNumero(txt) {
+  const t = String(txt ?? '').trim().replace(/\s/g, '').replace(',', '.');
+  return t === '' ? NaN : Number(t);
+}

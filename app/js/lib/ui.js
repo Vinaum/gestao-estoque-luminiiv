@@ -58,3 +58,25 @@ export function mensagemErro(e) {
   if (/Failed to fetch|NetworkError|Tempo esgotado/i.test(m)) return 'Sem conexão com o servidor. Verifique a internet e tente de novo.';
   return m;
 }
+
+// Janela com formulário. `aoEnviar` recebe os campos como objeto; se lançar erro, ele aparece na janela.
+export function janelaForm({ titulo, intro = '', corpo, rotulo = 'Salvar', aoEnviar }) {
+  const fundo = abrirJanela(h`<h3>${titulo}</h3>${intro ? h`<p>${intro}</p>` : ''}
+    <form novalidate>${corpo}
+      <div class="auth-error hidden" data-erro role="alert"></div>
+      <div class="acoes"><button type="button" class="btn ghost" data-fechar>Cancelar</button>
+      <button class="btn" type="submit">${rotulo}</button></div></form>`);
+  const form = fundo.querySelector('form');
+  const caixaErro = fundo.querySelector('[data-erro]');
+  const botao = form.querySelector('button[type=submit]');
+  fundo.querySelector('[data-fechar]').addEventListener('click', () => fundo.remove());
+  fundo.addEventListener('keydown', (e) => { if (e.key === 'Escape') fundo.remove(); });
+  form.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    botao.disabled = true; caixaErro.classList.add('hidden');
+    try { await aoEnviar(Object.fromEntries(new FormData(form))); fundo.remove(); }
+    catch (e) { caixaErro.textContent = mensagemErro(e); caixaErro.classList.remove('hidden'); botao.disabled = false; }
+  });
+  form.querySelector('input:not([type=hidden]),select,textarea')?.focus();
+  return fundo;
+}

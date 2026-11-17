@@ -6,7 +6,7 @@ const SINDICO = ['sindico', 'superadmin'];
 export const ROTAS = [
   { id: 'painel',         titulo: 'Painel do síndico',      papeis: SINDICO, grupo: '' },
   { id: 'aprovacoes',     titulo: 'Aprovações',             papeis: SINDICO, grupo: '' },
-  { id: 'operacao',       titulo: 'Operação diária',        papeis: EQUIPE,  grupo: 'Estoque' },
+  { id: 'operacao',       titulo: 'Operação diária',        papeis: EQUIPE,  grupo: 'Estoque', modulo: './modules/operacao/operacao.js' },
   { id: 'estoque',        titulo: 'Estoque atual',          papeis: EQUIPE,  grupo: 'Estoque' },
   { id: 'config-estoque', titulo: 'Configuração de estoque',papeis: EQUIPE,  grupo: 'Estoque' },
   { id: 'compras',        titulo: 'Central de compras',     papeis: EQUIPE,  grupo: 'Compras' },
