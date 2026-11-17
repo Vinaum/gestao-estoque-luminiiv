@@ -11,10 +11,10 @@ export const ROTAS = [
   { id: 'config-estoque', titulo: 'Configuração de estoque',papeis: EQUIPE,  grupo: 'Estoque' , modulo: './modules/config-estoque/config-estoque.js' },
   { id: 'compras',        titulo: 'Central de compras',     papeis: EQUIPE,  grupo: 'Compras', modulo: './modules/compras/compras.js' },
   { id: 'fornecedores',   titulo: 'Fornecedores',           papeis: EQUIPE,  grupo: 'Compras', modulo: './modules/fornecedores/fornecedores.js' },
-  { id: 'consumo',        titulo: 'Consumo',                papeis: EQUIPE,  grupo: 'Análises' },
-  { id: 'gastos',         titulo: 'Relatórios de gastos',   papeis: SINDICO, grupo: 'Análises' },
-  { id: 'usuarios',       titulo: 'Usuários',               papeis: SINDICO, grupo: 'Condomínio' },
-  { id: 'admin',          titulo: 'Administração',          papeis: ['superadmin'], grupo: 'Sistema' },
+  { id: 'consumo',        titulo: 'Consumo',                papeis: EQUIPE,  grupo: 'Análises', modulo: './modules/relatorios/consumo.js' },
+  { id: 'gastos',         titulo: 'Relatórios de gastos',   papeis: SINDICO, grupo: 'Análises', modulo: './modules/relatorios/gastos.js' },
+  { id: 'usuarios',       titulo: 'Usuários',               papeis: SINDICO, grupo: 'Condomínio', modulo: './modules/usuarios/usuarios.js' },
+  { id: 'admin',          titulo: 'Administração',          papeis: ['superadmin'], grupo: 'Sistema', modulo: './modules/admin/admin.js' },
   { id: 'inicio',         titulo: 'Início',                 papeis: ['morador'], grupo: '', modulo: './modules/boasvindas/boasvindas.js' },
 ];
 

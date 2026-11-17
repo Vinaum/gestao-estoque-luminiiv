@@ -11,4 +11,13 @@ select id,data,responsavel_id,observacao,criado_em from public.recebimentos limi
 select recebimento_id,compra_item_id,quantidade,vencimento from public.recebimento_itens limit 0;
 select id,nome,razao_social,cnpj,contato,telefone,email,endereco,observacoes,ativo from public.fornecedores limit 0;
 select id,nome,superadmin from public.profiles limit 0;
+select id,tabela,registro_id,acao,antes,depois,usuario_id,em,condominio_id from public.auditoria limit 0;
+select id,nome,cnpj,ativo from public.condominios limit 0;
+select condominio_id,faixa_atencao,venc_alerta_1,venc_alerta_2 from public.condominio_config limit 0;
+select condominio_id,user_id,papel,ativo,criado_em from public.membros limit 0;
+select id,condominio_id,email,papel,criado_em,usado_em from public.convites limit 0;
+select id,nome,ativo from public.categorias limit 0;
+select id,sigla,nome,ativo from public.unidades_medida limit 0;
+select item_id,condominio_id,cobertura_dias,situacao from public.v_cobertura limit 0;
+select problema,referencia,esperado,encontrado from public.verificar_consistencia('00000000-0000-0000-0000-000000000000') limit 0;
 \echo colunas OK

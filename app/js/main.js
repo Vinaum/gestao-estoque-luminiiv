@@ -150,5 +150,7 @@ async function iniciar() {
   else renderAuth();
 }
 
+// outras telas pedem para recarregar o cadastro (ex.: superadmin criou um condomínio)
+document.addEventListener('contexto-mudou', async () => { if (!estado.sessao) return; await carregarContexto(); renderApp(); });
 window.addEventListener('hashchange', () => { if (estado.sessao && usuarioCarregado) renderApp(); });
 iniciar();
