@@ -74,3 +74,11 @@ export function dataParaCampo(iso) {
   const p = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
+
+// Para o Início do morador: comunicados publicados e dentro da validade (fixados primeiro),
+// quantos ainda não foram abertos e os `max` primeiros para mostrar.
+export function paraInicio(lista, lidos, { agora = new Date(), max = 3 } = {}) {
+  const vigentes = ordenar(lista.filter((c) => c.status === 'publicado' && !vencido(c, agora)));
+  const novos = vigentes.filter((c) => !lidos.has(c.id));
+  return { itens: vigentes.slice(0, max), novos: novos.length, total: vigentes.length, ehNovo: (c) => !lidos.has(c.id) };
+}

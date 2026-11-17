@@ -14,6 +14,7 @@ Aplicação web para o síndico e a comissão de um condomínio controlarem o es
 - **Torres e apartamentos**: estrutura do condomínio e vínculo de cada morador ao seu apartamento (base da futura área dos moradores).
 - **Lista de compras por categoria**: na Central de compras, um botão gera a lista do que falta, dividida por categoria (Elétrica, Limpeza…), para copiar no WhatsApp, imprimir/salvar em PDF ou baixar em planilha.
 - **Comunicados**: síndico e gestor publicam avisos (para todo o condomínio ou uma torre), com anexo opcional e acompanhamento de quem já leu; o morador lê no próprio acesso.
+- **Início do morador**: página de entrada com os comunicados recentes (marcação de “novo”) e atalho para prestadores.
 - **Prestadores recomendados**: moradores indicam profissionais (marceneiro, pedreiro, diarista…), o síndico aprova, e os demais moradores recomendam; nome e unidade de quem indicou aparecem junto.
 - **Administração**: condomínios, usuários, convites (que podem ser editados ou cancelados) e papéis; diagnóstico de consistência do estoque; histórico de auditoria.
 
@@ -23,7 +24,7 @@ Aplicação web para o síndico e a comissão de um condomínio controlarem o es
 | superadmin | Criar condomínios, definir síndicos, ver todos os condomínios, rodar diagnósticos |
 | síndico | Tudo do condomínio, inclusive **aprovar compras** e gerenciar usuários |
 | gestor (especialista em estoque) | Operar estoque, montar compras e receber, cadastrar e editar fornecedores (sem ativar/desativar), ver painel e gastos. Não aprova compras nem gerencia pessoas |
-| morador | Somente a tela inicial (sem acesso a estoque, compras ou fornecedores) |
+| morador | Início, Comunicados e Prestadores (sem acesso a estoque, compras, fornecedores ou gastos) |
 
 ## Como rodar localmente
 O código é JavaScript puro (módulos ES), **sem build**. Precisa de um servidor local, porque o navegador não carrega módulos por `file://`:

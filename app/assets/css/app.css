@@ -190,3 +190,12 @@ tr.inativo td{ color:var(--muted); }
   body.imprimindo-lista .no-print{ display:none !important; }
   body.imprimindo-lista .grupo-lista{ break-inside:avoid; }
 }
+/* Início do morador */
+a.cartao-com{ display:flex; flex-direction:column; gap:4px; padding:14px 16px; color:inherit; text-decoration:none; }
+a.cartao-com:hover{ background:#faf8f2; }
+a.cartao-com:focus-visible{ outline:2px solid var(--ink); outline-offset:-2px; }
+a.btn{ display:inline-block; text-decoration:none; padding:8px 14px; border-radius:var(--radius); font-size:13px; font-weight:500; background:var(--ink); color:#fff; }
+a.btn.ghost{ background:transparent; color:var(--ink); border:1px solid var(--border); }
+a.btn:hover{ opacity:.88; }
+a.cartao-com .dica{ font-size:12px; color:var(--muted); }
+a.cartao-com.novo{ padding-left:13px; }

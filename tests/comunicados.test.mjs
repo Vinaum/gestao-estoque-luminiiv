@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { ordenar, vencido, contar, filtrarAba, resumo, validarDados, validarArquivo, nomeArquivo, expiraISO, dataParaCampo, TIPOS } from '../app/js/modules/comunicados/calculos.js';
+import { paraInicio, ordenar, vencido, contar, filtrarAba, resumo, validarDados, validarArquivo, nomeArquivo, expiraISO, dataParaCampo, TIPOS } from '../app/js/modules/comunicados/calculos.js';
 let n = 0; const t = (nome, fn) => { fn(); n++; console.log('OK   ' + nome); };
 
 t('ordenar: fixados primeiro, depois o mais recente', () => {
@@ -75,4 +75,17 @@ t('dataParaCampo: vazio e valor', () => {
   assert.equal(dataParaCampo(new Date(2026, 0, 5, 23, 59, 59).toISOString()), '2026-01-05');
 });
 t('tipos conhecidos', () => assert.deepEqual(Object.keys(TIPOS), ['aviso', 'manutencao', 'assembleia', 'obra', 'outros']));
+
+// Início do morador
+{
+  const agora = new Date('2026-11-15T12:00:00Z');
+  const mk = (id, extra = {}) => ({ id, status: 'publicado', publicado_em: '2026-11-1' + id + 'T12:00:00Z', expira_em: null, fixado: false, ...extra });
+  const L = [mk(1), mk(2), mk(3), mk(4), mk(5, { fixado: true }), mk(6, { status: 'rascunho' }), mk(7, { status: 'arquivado' }), mk(8, { expira_em: '2020-01-01T00:00:00Z' })];
+  const r = paraInicio(L, new Set([1]), { agora });
+  assert.equal(r.total, 5, 'só publicados e vigentes');
+  assert.equal(r.novos, 4, 'o lido não conta');
+  assert.deepEqual(r.itens.map((x) => x.id), [5, 4, 3], 'fixado primeiro, depois os mais recentes, no máximo 3');
+  assert.equal(paraInicio([], new Set(), { agora }).total, 0);
+  assert.equal(paraInicio(L, new Set(L.map((x) => x.id)), { agora }).novos, 0);
+}
 console.log(`RESULTADO: TUDO OK (${n} testes)`);

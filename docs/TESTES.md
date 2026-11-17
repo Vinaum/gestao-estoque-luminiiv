@@ -29,7 +29,7 @@ Execução: `PGHOST=… PGPORT=… PGUSER=postgres bash supabase/tests/rodar.sh`
 
 ## Front — navegador (`tests/e2e_*.py`)
 Playwright com Supabase simulado por interceptação de rede e sessão falsa.
-`menu` (menu e tela inicial de cada papel), `torres` (cadastro de torres e apartamentos), `comunicados` (lista, leitura, editor, anexo, quem leu), `prestadores` (indicar, recomendar, aprovação do síndico), `lista_compras` (botão, categorias, só marcados, copiar, planilha, impressão), `operacao`, `config` (mínimo/ideal), `compras` (editor, aprovação, recebimento), `painel`, `relatorios`, `admin` (condomínios, usuários, diagnóstico).
+`menu` (menu e tela inicial de cada papel), `torres` (cadastro de torres e apartamentos), `comunicados` (lista, leitura, editor, anexo, quem leu), `inicio` (início do morador: recentes, novos, atalhos), `prestadores` (indicar, recomendar, aprovação do síndico), `lista_compras` (botão, categorias, só marcados, copiar, planilha, impressão), `operacao`, `config` (mínimo/ideal), `compras` (editor, aprovação, recebimento), `painel`, `relatorios`, `admin` (condomínios, usuários, diagnóstico).
 
 ## Contratos com o banco real
 `tests/payloads_reais.sql` (o banco aceita exatamente o que o front envia), `colunas_views.sql` (colunas usadas existem) e `painel_vs_banco.*` (números do painel batem com somas SQL). Rodam sob demanda, contra um banco com as migrations aplicadas.

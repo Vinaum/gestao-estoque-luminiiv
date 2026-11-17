@@ -1,6 +1,6 @@
 # Proposta — Área dos moradores (comunicados e indicação de prestadores)
 
-Status: **etapas 6a (torres e apartamentos), 6b (comunicados) e 6c (prestadores) construídas; 6d aguarda validação.**
+Status: **etapas 6a (torres e apartamentos), 6b (comunicados), 6c (prestadores) e 6d (início do morador) construídas.**
 Decisões já tomadas pelo síndico: comunicados publicados por síndico **e** gestor; morador pode indicar prestador, **síndico aprova**; indicação mostra **quem indicou e a unidade** (5 torres); pedido de acesso pelo próprio morador fica para **depois**.
 
 ## 1. O que o morador passa a ter
@@ -87,7 +87,7 @@ Cuidados já previstos: o código não deixa listar condomínios; e-mail confirm
 | **6a** | Torres e apartamentos: tabelas, tela de cadastro com geração em lote, vínculo do morador (convite e tela Usuários) |
 | **6b** | Comunicados: banco, anexos, telas de publicação e leitura, contagem de leitura |
 | **6c** | Prestadores: banco, indicação, aprovação, recomendação, busca |
-| **6d** | Início do morador, menu "Comunidade", documentação, teste de ponta a ponta com os quatro papéis |
+| **6d** | Início do morador (feita), menu "Comunidade" (feito), documentação, teste de ponta a ponta com os quatro papéis (`e2e_menu`, `e2e_inicio`) |
 | **Depois** | Pedido de acesso pelo morador; aviso por e-mail; "transformar em fornecedor" |
 
 Mudanças em coisas que já existem: `convidar_membro` ganha o apartamento (parâmetro opcional); `membros` e `convites` ganham a coluna do apartamento; a tela Usuários mostra e permite alterar a unidade; novas migrations 0015 em diante, sem alterar dados existentes. A virada e a migration 0099 seguem como etapa à parte.

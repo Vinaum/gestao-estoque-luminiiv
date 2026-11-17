@@ -20,7 +20,7 @@ CASOS = {
   'superadmin': dict(uid='aaaaaaaa-0000-0000-0000-000000000001', super=True, conds=[(COND_A,'Cond A'),(COND_B,'Cond B')], vinc={},
                    menu=['Painel','Aprovações','Operação diária','Estoque atual','Configuração de estoque','Central de compras','Fornecedores','Consumo','Relatórios de gastos','Comunicados','Prestadores','Usuários','Torres e apartamentos','Administração'], inicial='#/admin'),
   'morador':  dict(uid='aaaaaaaa-0000-0000-0000-000000000004', super=False, conds=[(COND_A,'Cond A')], vinc={COND_A:'morador'},
-                   menu=['Comunicados','Prestadores','Início'], inicial='#/comunicados'),
+                   menu=['Início','Comunicados','Prestadores'], inicial='#/inicio'),
 }
 
 def rodar(pw, nome, c, nome_perfil='Pessoa Teste', nome_cond=None):
