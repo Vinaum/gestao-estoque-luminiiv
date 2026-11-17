@@ -80,3 +80,12 @@ export function janelaForm({ titulo, intro = '', corpo, rotulo = 'Salvar', aoEnv
   form.querySelector('input:not([type=hidden]),select,textarea')?.focus();
   return fundo;
 }
+
+// Janela só de leitura, com botão Fechar.
+export function janelaInfo(titulo, corpo) {
+  const fundo = abrirJanela(h`<h3>${titulo}</h3>${corpo}<div class="acoes"><button class="btn ghost" data-fechar>Fechar</button></div>`);
+  fundo.querySelector('[data-fechar]').addEventListener('click', () => fundo.remove());
+  fundo.addEventListener('keydown', (e) => { if (e.key === 'Escape') fundo.remove(); });
+  fundo.querySelector('[data-fechar]').focus();
+  return fundo;
+}

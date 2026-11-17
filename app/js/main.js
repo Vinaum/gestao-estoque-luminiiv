@@ -11,6 +11,7 @@ let modoAuth = 'login';
 let msgAuth = null;
 let recuperando = false;
 let usuarioCarregado = null;
+let entrandoUid = null; // quem já está sendo carregado (evita carregar duas vezes)
 
 function falhaFatal(msg) {
   render(raiz, h`<div class="auth-wrap"><div class="auth-card"><h1>Não foi possível iniciar</h1>
@@ -117,12 +118,15 @@ function renderAuth() {
 }
 
 async function entrar() {
+  const uid = estado.sessao?.user.id;
+  if (!uid || entrandoUid === uid) return;
+  entrandoUid = uid;
   render(raiz, h`<div class="loading-note">Entrando…</div>`);
   try {
     await comTempo(carregarContexto(), 15000, 'carregar o seu cadastro');
     if (!location.hash.startsWith('#/')) location.replace('#/' + (PADRAO[papelAtual()] ?? 'inicio'));
     renderApp();
-  } catch (e) { falhaFatal(mensagemErro(e)); }
+  } catch (e) { entrandoUid = null; falhaFatal(mensagemErro(e)); }
 }
 
 /* ---------- Início ---------- */
@@ -136,9 +140,9 @@ async function iniciar() {
   db.auth.onAuthStateChange((evento, sessao) => {
     estado.sessao = sessao;
     if (evento === 'PASSWORD_RECOVERY') { recuperando = true; renderAuth(); return; }
-    if (!sessao) { limparContexto(); usuarioCarregado = null; renderAuth(); return; }
+    if (!sessao) { limparContexto(); usuarioCarregado = null; entrandoUid = null; renderAuth(); return; }
     // renovações de sessão não recarregam a tela; só um login de outra pessoa
-    if (sessao.user.id !== usuarioCarregado && !recuperando) setTimeout(entrar, 0);
+    if (sessao.user.id !== usuarioCarregado && sessao.user.id !== entrandoUid && !recuperando) setTimeout(entrar, 0);
   });
 
   if (recuperando) renderAuth();

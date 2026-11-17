@@ -14,3 +14,6 @@ export function lerNumero(txt) {
   const t = String(txt ?? '').trim().replace(/\s/g, '').replace(',', '.');
   return t === '' ? NaN : Number(t);
 }
+
+// Número para campos editáveis: sem separador de milhar, com vírgula decimal ("1500,5").
+export const numCampo = (n) => String(Number(n ?? 0)).replace('.', ',');

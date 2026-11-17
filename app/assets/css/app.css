@@ -114,3 +114,7 @@ button.btn.pequeno{ padding:5px 10px; font-size:12px; }
 .tabela-rolagem{ overflow-x:auto; }
 .filtros{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
 .filtros input, .filtros select{ font-family:inherit; font-size:13.5px; padding:7px 9px; border:1px solid var(--border); border-radius:var(--radius); background:#fdfcf9; }
+.inp-num{ width:84px; font-family:'IBM Plex Mono',monospace; font-size:13px; padding:5px 7px; border:1px solid var(--border); border-radius:var(--radius); background:#fdfcf9; text-align:right; }
+.inp-num.alterado{ border-color:var(--warn); background:var(--warn-soft); }
+tr.inativo td{ color:var(--muted); }
+.modal.largo{ width:min(640px,100%); }
