@@ -22,6 +22,7 @@ async function carregar() {
   nomes = Object.fromEntries((pf || []).map((p) => [p.id, p.nome]));
 }
 
+const podeMexerConvite = (c) => ehSuperadmin() || c.papel !== 'sindico';
 const podeMexer = (m) => m.user_id !== euId() && (ehSuperadmin() || m.papel !== 'sindico');
 
 function desenhar() {
@@ -38,10 +39,15 @@ function desenhar() {
           <td>${m.ativo ? 'Ativo' : 'Desativado'}</td>
           <td>${podeMexer(m) ? h`<button class="icon-btn" data-acao="${m.ativo ? 'desativar' : 'reativar'}" data-id="${m.user_id}">${m.ativo ? 'Desativar' : 'Reativar'}</button>` : ''}</td></tr>`)}</tbody></table></div></div>
     <div class="panel"><h3>Convites pendentes</h3>
-      ${convites.length ? h`<table><thead><tr><th>E-mail</th><th>Papel</th><th>Enviado em</th></tr></thead><tbody>
-        ${convites.map((c) => h`<tr><td>${c.email}</td><td>${PAPEL_ROTULO[c.papel]}</td><td>${dataBR(c.criado_em)}</td></tr>`)}</tbody></table>`
+      ${convites.length ? h`<div class="tabela-rolagem"><table><thead><tr><th>E-mail</th><th>Papel</th><th>Enviado em</th><th></th></tr></thead><tbody>
+        ${convites.map((c) => h`<tr><td>${c.email}</td>
+          <td>${podeMexerConvite(c)
+            ? h`<select data-convite-papel="${c.id}" aria-label="Papel do convite de ${c.email}">${papeisPermitidos().map((p) => h`<option value="${p}" ${p === c.papel ? raw('selected') : ''}>${PAPEL_ROTULO[p]}</option>`)}</select>`
+            : PAPEL_ROTULO[c.papel]}</td>
+          <td>${dataBR(c.criado_em)}</td>
+          <td>${podeMexerConvite(c) ? h`<button class="icon-btn" data-acao="cancelar-convite" data-id="${c.id}">Cancelar convite</button>` : ''}</td></tr>`)}</tbody></table></div>`
         : h`<div class="empty">Nenhum convite pendente.</div>`}
-      <p class="dica" style="margin-top:10px">O convite vale quando a pessoa criar a conta com este mesmo e-mail e confirmar o e-mail.</p></div>`);
+      <p class="dica" style="margin-top:10px">O convite vale quando a pessoa criar a conta com este mesmo e-mail e confirmar o e-mail. Convidou o e-mail errado? Cancele o convite e convide de novo com o e-mail certo.${ehSuperadmin() ? '' : ' Convites de síndico só o superadmin altera.'}</p></div>`);
 }
 
 function convidar() {
@@ -66,6 +72,15 @@ export async function abrir(el) {
   raizPagina = el;
   await carregar(); desenhar();
   el.addEventListener('change', async (e) => {
+    const selC = e.target.closest('[data-convite-papel]');
+    if (selC) {
+      const c = convites.find((x) => x.id === selC.dataset.convitePapel);
+      try {
+        await rpc('alterar_convite_papel', { p_convite_id: c.id, p_papel: selC.value });
+        aviso('Papel do convite alterado.', 'ok'); await carregar(); desenhar();
+      } catch (err) { aviso(mensagemErro(err), 'erro'); selC.value = c.papel; }
+      return;
+    }
     const sel = e.target.closest('[data-papel-de]'); if (!sel) return;
     const m = membros.find((x) => x.user_id === sel.dataset.papelDe);
     try {
@@ -77,6 +92,12 @@ export async function abrir(el) {
     try {
       const a = b.dataset.acao;
       if (a === 'convidar') convidar();
+      else if (a === 'cancelar-convite') {
+        const c = convites.find((x) => x.id === b.dataset.id); if (!c) return;
+        if (!(await confirmar('Cancelar convite?', `O convite para ${c.email} será removido. Se a pessoa criar a conta depois, não entrará no condomínio.`, { rotulo: 'Cancelar convite', perigo: true }))) return;
+        await rpc('cancelar_convite', { p_convite_id: c.id });
+        aviso('Convite cancelado.', 'ok'); await carregar(); desenhar();
+      }
       else if (a === 'desativar' || a === 'reativar') {
         const nome = nomes[b.dataset.id] || 'esta pessoa';
         if (a === 'desativar' && !(await confirmar('Desativar acesso?', `${nome} perderá o acesso a este condomínio. O histórico dela continua registrado.`, { rotulo: 'Desativar', perigo: true }))) return;

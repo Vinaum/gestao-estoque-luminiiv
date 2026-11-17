@@ -21,7 +21,7 @@ def dados_comuns(papel_da_sessao, superadmin):
             if 'papel=eq.sindico' in u: return [{'condominio_id': CA, 'user_id': SIN, 'ativo': True}]
             return [{'condominio_id': CA, 'user_id': SIN, 'papel': 'sindico', 'ativo': True, 'criado_em': '2026-01-01'}, {'condominio_id': CA, 'user_id': GES, 'papel': 'gestor', 'ativo': True, 'criado_em': '2026-01-02'},
                     {'condominio_id': CA, 'user_id': MOR, 'papel': 'morador', 'ativo': True, 'criado_em': '2026-01-03'}]
-        if '/convites' in u: return [{'id': 'c1', 'email': 'novo@x.com', 'papel': 'morador', 'criado_em': '2026-11-01'}]
+        if '/convites' in u: return [{'id': 'c1', 'email': 'novo@x.com', 'papel': 'morador', 'criado_em': '2026-11-01'}, {'id': 'c2', 'email': 'sind@x.com', 'papel': 'sindico', 'criado_em': '2026-11-02'}]
         if '/categorias' in u: return [{'id': 'k1', 'nome': 'Limpeza', 'ativo': True}]
         if '/unidades_medida' in u: return [{'id': 'u1', 'sigla': 'un', 'nome': 'unidade', 'ativo': True}]
         if '/auditoria' in u:
@@ -87,6 +87,19 @@ def main():
             c = [x for x in ch if x[0] == 'desativar_membro']
             ok(len(c) == 1 and c[0][1]['p_ativo'] is False and c[0][1]['p_user_id'] == MOR, 'desativar pede confirmação e envia p_ativo falso')
             ok('novo@x.com' in pg.inner_text('#pagina'), 'convites pendentes listados')
+            sc = pg.locator('[data-convite-papel="c1"]')
+            ok(sc.locator('option').all_inner_texts() == ['Gestor', 'Morador'] and sc.input_value() == 'morador', 'convite: síndico escolhe só Gestor ou Morador')
+            ok(pg.locator('[data-convite-papel="c2"]').count() == 0 and pg.locator('[data-acao=cancelar-convite][data-id="c2"]').count() == 0, 'convite de síndico: sem controles para o síndico')
+            sc.select_option('gestor'); pg.wait_for_selector('.toast.ok')
+            c = [x for x in ch if x[0] == 'alterar_convite_papel']
+            ok(len(c) == 1 and c[0][1] == {'p_convite_id': 'c1', 'p_papel': 'gestor'}, 'alterar papel do convite envia o convite certo')
+            pg.click('[data-acao=cancelar-convite][data-id="c1"]'); pg.wait_for_selector('.modal [data-r="0"]'); pg.click('.modal [data-r="0"]')
+            ok(not [x for x in ch if x[0] == 'cancelar_convite'], 'voltar na confirmação não cancela o convite')
+            pg.click('[data-acao=cancelar-convite][data-id="c1"]'); pg.wait_for_selector('.modal [data-r="1"]')
+            ok('novo@x.com' in pg.inner_text('.modal'), 'confirmação mostra o e-mail do convite')
+            pg.click('.modal [data-r="1"]'); pg.wait_for_selector('.toast.ok')
+            c = [x for x in ch if x[0] == 'cancelar_convite']
+            ok(len(c) == 1 and c[0][1] == {'p_convite_id': 'c1'}, 'cancelar convite envia o convite certo')
             ok(not erros, 'usuários sem erros de script: %s' % erros); nav.close()
             # gestor e morador não entram em usuários/admin; síndico não entra em admin
             for papel, uid, rota in [('gestor', GES, 'usuarios'), ('sindico', SIN, 'admin')]:

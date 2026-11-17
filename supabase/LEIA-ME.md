@@ -17,6 +17,7 @@ Cada arquivo pode ser repetido sem estragar nada.
 | 10 | 0010_auditoria | Histórico de alterações |
 | 11 | 0011_rls | Regras de acesso por papel |
 | 12 | 0012_storage | Notas fiscais (bucket privado) |
+| 13 | 0013_convites_gerir | Cancelar e alterar o papel de convites pendentes |
 
 `pendentes/0099_remover_legado.sql` **não deve ser rodado** sem aprovação separada: apaga o modelo antigo.
 

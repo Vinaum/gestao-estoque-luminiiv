@@ -627,6 +627,90 @@ begin
 end $$;
 
 -- ============================================================
+-- Convites pendentes: cancelar e alterar
+-- ============================================================
+do $$
+declare
+  v_a uuid := tests.id('condA'); v_b uuid := tests.id('condB'); v_id uuid; v_id2 uuid; v_sind uuid;
+begin
+  raise notice '--- Convites pendentes ---';
+  -- síndico convida por engano
+  perform tests.login(tests.sind());
+  perform public.convidar_membro(v_a, 'engano@teste.com', 'morador');
+  perform public.convidar_membro(v_a, 'outro@teste.com', 'gestor');
+  select id into v_id from public.convites where condominio_id = v_a and email = 'engano@teste.com';
+  select id into v_id2 from public.convites where condominio_id = v_a and email = 'outro@teste.com';
+  perform tests.ok('I síndico vê o convite pendente', v_id is not null);
+
+  perform public.alterar_convite_papel(v_id2, 'morador');
+  perform tests.texto('I síndico altera o papel do convite', (select papel from public.convites where id = v_id2), 'morador');
+  perform tests.erro('I mesmo papel é recusado', format('select public.alterar_convite_papel(%L, ''morador'')', v_id2), 'já está');
+  perform tests.erro('I síndico não promove convite a síndico', format('select public.alterar_convite_papel(%L, ''sindico'')', v_id2), 'superadmin');
+  perform tests.erro('I papel inválido é recusado', format('select public.alterar_convite_papel(%L, ''zelador'')', v_id2), 'Papel inválido');
+
+  perform public.cancelar_convite(v_id);
+  perform tests.igual('I síndico cancela o convite (some da lista)', (select count(*) from public.convites where id = v_id), 0);
+  perform tests.erro('I cancelar de novo dá erro claro', format('select public.cancelar_convite(%L)', v_id), 'não encontrado');
+  perform tests.logout();
+
+  -- o e-mail cancelado pode ser convidado de novo e a pessoa não herda o convite antigo
+  perform tests.login(tests.sind());
+  perform public.convidar_membro(v_a, 'engano@teste.com', 'gestor');
+  perform tests.texto('I e-mail cancelado pode ser convidado de novo', (select papel from public.convites where condominio_id = v_a and email = 'engano@teste.com'), 'gestor');
+  perform public.cancelar_convite((select id from public.convites where condominio_id = v_a and email = 'engano@teste.com'));
+  perform tests.logout();
+  insert into auth.users (id, email, email_confirmed_at) values ('00000000-0000-0000-0000-0000000000e1', 'engano@teste.com', now());
+  perform tests.ok('I quem teve o convite cancelado não entra no condomínio ao criar conta',
+    not exists (select 1 from public.membros where user_id = '00000000-0000-0000-0000-0000000000e1'));
+
+  -- segurança
+  perform tests.login(tests.gest());
+  perform tests.erro('I gestor não cancela convite', format('select public.cancelar_convite(%L)', v_id2), 'Sem permissão');
+  perform tests.erro('I gestor não altera convite', format('select public.alterar_convite_papel(%L, ''gestor'')', v_id2), 'Sem permissão');
+  perform tests.logout();
+  perform tests.login(tests.mor());
+  perform tests.erro('I morador não cancela convite', format('select public.cancelar_convite(%L)', v_id2), 'Sem permissão');
+  perform tests.logout();
+  perform tests.login('00000000-0000-0000-0000-0000000000b2');
+  perform tests.erro('I síndico do B não mexe em convite do A', format('select public.cancelar_convite(%L)', v_id2), 'Sem permissão');
+  perform tests.logout();
+  perform tests.login(tests.sind());
+  perform tests.erro('I ninguém apaga convite direto na tabela', format('delete from public.convites where id = %L', v_id2), 'permission denied');
+  perform tests.logout();
+
+  -- convite de síndico: só o superadmin
+  perform tests.login(tests.super());
+  perform public.convidar_membro(v_a, 'novo.sindico@teste.com', 'sindico');
+  select id into v_sind from public.convites where condominio_id = v_a and email = 'novo.sindico@teste.com';
+  perform tests.logout();
+  perform tests.login(tests.sind());
+  perform tests.erro('I síndico não cancela convite de síndico', format('select public.cancelar_convite(%L)', v_sind), 'superadmin');
+  perform tests.erro('I síndico não rebaixa convite de síndico', format('select public.alterar_convite_papel(%L, ''gestor'')', v_sind), 'superadmin');
+  perform tests.logout();
+  perform tests.login(tests.super());
+  perform public.cancelar_convite(v_sind);
+  perform tests.igual('I superadmin cancela convite de síndico', (select count(*) from public.convites where id = v_sind), 0);
+  perform tests.logout();
+
+  -- convite já usado não muda
+  perform tests.login(tests.sind());
+  perform public.convidar_membro(v_a, 'usado@teste.com', 'morador');
+  perform tests.logout();
+  update public.convites set usado_em = now() where condominio_id = v_a and email = 'usado@teste.com';
+  perform tests.login(tests.sind());
+  perform tests.erro('I convite já usado não é cancelado', format('select public.cancelar_convite(%L)', (select id from public.convites where email = 'usado@teste.com' and condominio_id = v_a)), 'já foi usado');
+  perform tests.erro('I convite já usado não é alterado', format('select public.alterar_convite_papel(%L, ''gestor'')', (select id from public.convites where email = 'usado@teste.com' and condominio_id = v_a)), 'já foi usado');
+  perform tests.logout();
+
+  -- auditoria
+  perform tests.login(tests.sind());
+  perform tests.ok('I cancelamento e alteração ficam na auditoria',
+    (select count(*) from public.auditoria where tabela = 'convites' and acao = 'cancelar' and condominio_id = v_a) >= 2
+    and (select count(*) from public.auditoria where tabela = 'convites' and acao = 'alterar_papel' and condominio_id = v_a) >= 1);
+  perform tests.logout();
+end $$;
+
+-- ============================================================
 -- Conferência final de consistência (todos os condomínios)
 -- ============================================================
 do $$

@@ -3,7 +3,7 @@
 Tudo roda com `bash tests/rodar_tudo.sh`. Nenhum teste altera o Supabase real.
 
 ## Banco (`supabase/tests/`, Postgres descartável)
-Execução: `PGHOST=… PGPORT=… PGUSER=postgres bash supabase/tests/rodar.sh`. O script cria um banco temporário, simula o Supabase (`00_stub_supabase.sql`), carrega dados do modelo antigo (`legacy_schema.sql` + `01_legado_seed.sql`), aplica as 12 migrations, roda os cenários e apaga o banco.
+Execução: `PGHOST=… PGPORT=… PGUSER=postgres bash supabase/tests/rodar.sh`. O script cria um banco temporário, simula o Supabase (`00_stub_supabase.sql`), carrega dados do modelo antigo (`legacy_schema.sql` + `01_legado_seed.sql`), aplica as 13 migrations, roda os cenários e apaga o banco.
 
 | Cenário | O que garante |
 |---|---|
@@ -17,6 +17,7 @@ Execução: `PGHOST=… PGPORT=… PGUSER=postgres bash supabase/tests/rodar.sh`
 | Parâmetros e relatórios | Histórico de mínimo/ideal, vencimentos, cobertura e gastos |
 | Compras | Edição, mudança de status e nota fiscal |
 | H | Segurança: gestor não altera papéis, não convida, não escreve direto em lotes/movimentações/compras, não apaga movimentação nem troca o condomínio de um item; isolamento entre condomínios; morador só lê catálogos; síndico lê a auditoria do próprio condomínio; superadmin vê os dois condomínios |
+| Convites | Síndico cancela e altera convites comuns; e-mail cancelado pode ser convidado de novo e quem criar conta depois não entra; gestor, morador e síndico de outro condomínio são bloqueados; convite de síndico só o superadmin gerencia; convite já usado não muda; nada se apaga direto na tabela; tudo fica na auditoria |
 | Concorrência | Duas retiradas simultâneas de 8 sobre saldo 10: uma passa, outra é recusada, saldo final 2 |
 
 ## Front — unidade (`tests/*.test.mjs`)
