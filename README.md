@@ -5,14 +5,17 @@ o que entra (compras, com fornecedor, nota fiscal e valor), o que sai (uso),
 o consumo médio mensal e alertas de itens perto de acabar.
 
 - **Site:** `https://Vinaum.github.io/gestao-estoque-luminiiv/`
-- **Tecnologias:** HTML, CSS e JavaScript (tudo em um único `index.html`) + [Supabase](https://supabase.com) (banco de dados PostgreSQL e login)
+- **Tecnologias:** HTML, CSS e JavaScript (`index.html` + `app.js`) + [Supabase](https://supabase.com) (banco de dados PostgreSQL e login)
 - **Hospedagem:** GitHub Pages
 
 ## Arquivos do repositório
 
 | Arquivo | Para que serve |
 |---|---|
-| `index.html` | O site inteiro: telas, regras de cálculo e conexão com o Supabase |
+| `index.html` | Página, estilos e política de segurança (CSP) |
+| `app.js` | Telas, regras de cálculo e conexão com o Supabase. As chaves `SUPABASE_URL` e `SUPABASE_ANON_KEY` ficam no começo deste arquivo |
+| `vendor/` | Cópia local da biblioteca do Supabase (versão fixa), para não depender de CDN |
+| `tests/xss_smoke.py` | Teste opcional que confere que textos digitados não executam código |
 | `schema.sql` | Cria as tabelas, as regras de acesso por papel e o gatilho que atualiza o estoque |
 | `atualizacao-superadmin.sql` | Só o bloco do papel superadmin (para projetos que já existem) |
 | `README.md` | Este guia |
@@ -44,7 +47,7 @@ O síndico pode alterar esses valores na aba **Consumo médio**.
 1. **Crie um projeto** em [supabase.com](https://supabase.com).
 2. No **SQL Editor**, cole o conteúdo de `schema.sql` e clique em **Run**. Rode **uma única vez**.
 3. Em **Project Settings → API**, copie a **Project URL** e a chave **anon** (ou *publishable*).
-4. No `index.html`, troque as duas constantes no começo do script, mantendo as aspas:
+4. No `app.js`, troque as duas constantes no começo do script, mantendo as aspas:
    ```js
    const SUPABASE_URL = 'https://SEU-PROJECT-ID.supabase.co';
    const SUPABASE_ANON_KEY = 'SUA_CHAVE_ANON_OU_PUBLISHABLE';
@@ -85,7 +88,7 @@ O envio de e-mails no plano gratuito do Supabase tem limite por hora.
 ## Migrar para outro projeto Supabase
 
 1. Crie o projeto novo e rode o `schema.sql`.
-2. Troque `SUPABASE_URL` e `SUPABASE_ANON_KEY` no `index.html`.
+2. Troque `SUPABASE_URL` e `SUPABASE_ANON_KEY` no `app.js`.
 3. Atualize **Site URL** e **Redirect URLs** no Supabase.
 4. Para trazer dados antigos, importe `items` primeiro e depois `movements`, desligando antes o gatilho para o estoque não ser somado de novo:
    ```sql

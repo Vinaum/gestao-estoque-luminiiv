@@ -1,36 +1,25 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
-/node_modules
-/.pnp
-.pnp.js
-
-# testing
-/coverage
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# misc
+# Sistema operacional
 .DS_Store
-*.pem
+Thumbs.db
+desktop.ini
 
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# Editores e backups
+.vscode/
+.idea/
+*.swp
+*.save
+*~
 
-# local env files
-.env*.local
+# Segredos (nunca envie chaves privadas)
 .env
+.env.*
+*.pem
+*secret*
+service_role*
 
-# vercel
-.vercel
+# Dependências e testes locais
+node_modules/
+coverage/
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+# Logs
+*.log

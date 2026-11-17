@@ -1,121 +1,20 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Estoque de Manutenção — Condomínio</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<style>
-  :root{
-    --bg:#e9e6de; --surface:#ffffff; --rail:#182524; --rail-ink:#c9d3ce;
-    --ink:#1c2b2a; --muted:#5b6b68; --border:#d9d4c6;
-    --accent:#c1502e; --accent-soft:#f3ded4;
-    --warn:#e0942f; --warn-soft:#faedd6;
-    --ok:#2f6e5e; --ok-soft:#dfeae5; --radius:6px;
-  }
-  *{box-sizing:border-box;}
-  body{ margin:0; background:var(--bg); color:var(--ink); font-family:'IBM Plex Sans', sans-serif; font-size:14px; line-height:1.5; }
-  h1,h2,h3{ font-family:'Space Grotesk', sans-serif; margin:0; letter-spacing:-0.01em; }
-  .num{ font-family:'IBM Plex Mono', monospace; }
-  .app{ display:flex; min-height:100vh; }
-  .rail{ width:200px; flex-shrink:0; background:var(--rail); color:var(--rail-ink); padding:22px 14px; display:flex; flex-direction:column; gap:2px; }
-  .rail-title{ font-size:15px; color:#fff; margin-bottom:4px; padding:0 8px; }
-  .rail-sub{ font-size:11.5px; color:#8a9c97; padding:0 8px; margin-bottom:8px; }
-  .rail-who{ font-size:11.5px; color:#8a9c97; padding:0 8px; margin-bottom:20px; }
-  .rail-who b{ color:#dfe8e4; }
-  .rail button{ all:unset; cursor:pointer; padding:9px 10px; border-radius:var(--radius); font-size:13.5px; color:var(--rail-ink); display:flex; align-items:center; gap:9px; }
-  .rail button:hover{ background:#243634; }
-  .rail button.active{ background:#2c413e; color:#fff; font-weight:500; }
-  .rail button .dot{ width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.5;flex-shrink:0; }
-  .rail .badge{ margin-left:auto; background:var(--accent); color:#fff; font-size:10.5px; font-family:'IBM Plex Mono',monospace; padding:1px 6px; border-radius:20px; }
-  .rail-foot{ margin-top:auto; font-size:11.5px; padding-top:12px; border-top:1px solid #2b3d3a; }
-  .rail-foot button{ padding:8px 10px; }
-  .main{ flex:1; padding:30px 36px 60px; max-width:1080px; }
-  .page-head{ margin-bottom:22px; display:flex; justify-content:space-between; align-items:flex-start; gap:20px;}
-  .page-head p{ color:var(--muted); margin:4px 0 0; font-size:13.5px; }
-  .role-note{ font-size:12px; color:var(--muted); background:var(--surface); border:1px solid var(--border); padding:6px 12px; border-radius:20px; white-space:nowrap; }
-  .cards{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:26px; }
-  .card{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; }
-  .card .k{ font-size:11.5px; color:var(--muted); }
-  .card .v{ font-size:26px; font-family:'Space Grotesk',sans-serif; margin-top:4px; }
-  .card.crit .v{ color:var(--accent); } .card.warn .v{ color:var(--warn); }
-  .panel{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px 22px; margin-bottom:20px; }
-  .panel h3{ font-size:15px; margin-bottom:14px; }
-  table{ width:100%; border-collapse:collapse; }
-  th{ text-align:left; font-size:11px; color:var(--muted); font-weight:500; padding:6px 10px; border-bottom:1px solid var(--border); }
-  td{ padding:9px 10px; border-bottom:1px solid #eee9dc; font-size:13.5px; vertical-align:middle; }
-  tr:last-child td{ border-bottom:none; }
-  tr.row-crit{ background:var(--accent-soft); } tr.row-warn{ background:var(--warn-soft); }
-  .status-pill{ display:inline-flex; align-items:center; gap:5px; font-size:11.5px; padding:2px 9px; border-radius:20px; font-weight:500; }
-  .status-ok{ background:var(--ok-soft); color:var(--ok); } .status-warn{ background:var(--warn-soft); color:#96631a; } .status-crit{ background:var(--accent-soft); color:var(--accent); }
-  .role-pill{ font-size:11px; padding:2px 8px; border-radius:20px; background:#eee9dc; color:var(--muted); }
-  button.btn{ all:unset; cursor:pointer; background:var(--ink); color:#fff; padding:8px 14px; border-radius:var(--radius); font-size:13px; font-weight:500; }
-  button.btn:hover{ opacity:.88; }
-  button.btn.ghost{ background:transparent; color:var(--ink); border:1px solid var(--border); }
-  button.btn.danger{ background:var(--accent); }
-  button.btn:disabled{ opacity:.4; cursor:not-allowed; }
-  .toolbar{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:10px; flex-wrap:wrap;}
-  form.inline-form{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-top:14px; align-items:end; }
-  .field{ display:flex; flex-direction:column; gap:5px; }
-  .field label{ font-size:11.5px; color:var(--muted); }
-  .field input, .field select, .field textarea{ font-family:inherit; font-size:13.5px; padding:8px 9px; border:1px solid var(--border); border-radius:var(--radius); background:#fdfcf9; color:var(--ink); }
-  .field textarea{ resize:vertical; min-height:38px; }
-  .form-actions{ grid-column:1/-1; display:flex; gap:8px; margin-top:2px; }
-  .empty{ color:var(--muted); font-size:13px; padding:20px 6px; text-align:center; }
-  .icon-btn{ all:unset; cursor:pointer; color:var(--muted); font-size:12px; padding:3px 6px; }
-  .icon-btn:hover{ color:var(--ink); }
-  .icon-btn:disabled{ opacity:.3; cursor:not-allowed; }
-  .tag{ font-size:11px; background:#eee9dc; padding:2px 8px; border-radius:20px; color:var(--muted); }
-  .tabs-mini{ display:flex; gap:6px; margin-bottom:16px; }
-  .tabs-mini button{ all:unset; cursor:pointer; font-size:12.5px; padding:6px 12px; border-radius:20px; border:1px solid var(--border); color:var(--muted); }
-  .tabs-mini button.active{ background:var(--ink); color:#fff; border-color:var(--ink); }
-  .loading-note{ color:var(--muted); font-size:13px; padding:40px; text-align:center; }
-  .hidden{ display:none !important; }
-  .readonly-note{ font-size:12.5px; color:var(--muted); background:#f4f1e9; border:1px dashed var(--border); padding:8px 12px; border-radius:var(--radius); margin-bottom:14px;}
-
-  /* Auth screen */
-  .auth-wrap{ min-height:100vh; display:flex; align-items:center; justify-content:center; }
-  .auth-card{ width:340px; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:30px 28px; }
-  .auth-card h1{ font-size:19px; margin-bottom:4px; }
-  .auth-card p.sub{ color:var(--muted); font-size:13px; margin:0 0 20px; }
-  .auth-card .field{ margin-bottom:12px; }
-  .auth-card button.btn{ width:100%; text-align:center; margin-top:6px; padding:10px; }
-  .auth-toggle{ text-align:center; margin-top:16px; font-size:12.5px; color:var(--muted); }
-  .auth-toggle a{ color:var(--ink); cursor:pointer; text-decoration:underline; }
-  .auth-error{ background:var(--accent-soft); color:var(--accent); font-size:12.5px; padding:8px 10px; border-radius:var(--radius); margin-bottom:12px; }
-  .auth-ok{ background:var(--ok-soft); color:var(--ok); font-size:12.5px; padding:8px 10px; border-radius:var(--radius); margin-bottom:12px; }
-
-  @media (max-width: 780px){
-    .app{ flex-direction:column; }
-    .rail{ width:100%; flex-direction:row; overflow-x:auto; padding:12px; }
-    .rail-title,.rail-sub,.rail-who{ display:none; }
-    .rail-foot{ margin-top:0; border-top:none; padding-top:0; }
-    .rail button{ white-space:nowrap; }
-    .main{ padding:20px; }
-    .cards{ grid-template-columns:repeat(2,1fr); }
-    .page-head{ flex-direction:column; }
-  }
-</style>
-</head>
-<body>
-
-<div id="root"><div class="loading-note">Carregando…</div></div>
-
-<script>
 /* ======================================================================
    1) CONFIGURAÇÃO — troque pelos dados do seu projeto Supabase
    (Project Settings → API, no painel do Supabase)
    ====================================================================== */
-const SUPABASE_URL = 'https://.supabase.co';
-const SUPABASE_ANON_KEY = 'SUA_CHAVE_ANON_PUBLICA';
+const SUPABASE_URL = 'https://aiuwreyhnubprlapkxli.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_RDrhP1P10yNKXlYtd1wf4g_2skPg7c0';
+
+// Escapa texto antes de colocá-lo em HTML (impede injeção de código por nomes, fornecedores etc.)
+function esc(v){
+  return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 
 let db = null; // cliente do Supabase (criado no boot)
 
 function showFatal(msg){
   const root = document.getElementById('root');
-  root.innerHTML = '<div class="auth-wrap"><div class="auth-card"><h1>Não foi possível iniciar</h1><p class="sub">Veja o motivo abaixo:</p><div class="auth-error">'+msg+'</div></div></div>';
+  root.innerHTML = '<div class="auth-wrap"><div class="auth-card"><h1>Não foi possível iniciar</h1><p class="sub">Veja o motivo abaixo:</p><div class="auth-error">'+esc(msg)+'</div></div></div>';
 }
 window.addEventListener('error', e => showFatal(e.message));
 window.addEventListener('unhandledrejection', e => showFatal((e.reason && e.reason.message) || String(e.reason)));
@@ -260,8 +159,8 @@ function renderAuth(){
     <div class="auth-card">
       <h1>Estoque de manutenção</h1>
       <p class="sub">${isSignup ? 'Criar uma conta' : 'Entrar na sua conta'}</p>
-      ${authMsg && authMsg.type==='error' ? `<div class="auth-error">${authMsg.text}</div>` : ''}
-      ${authMsg && authMsg.type==='ok' ? `<div class="auth-ok">${authMsg.text}</div>` : ''}
+      ${authMsg && authMsg.type==='error' ? `<div class="auth-error">${esc(authMsg.text)}</div>` : ''}
+      ${authMsg && authMsg.type==='ok' ? `<div class="auth-ok">${esc(authMsg.text)}</div>` : ''}
       <form id="authForm">
         ${isSignup ? `<div class="field"><label>Nome</label><input name="nome" required placeholder="Seu nome"></div>` : ''}
         <div class="field"><label>E-mail</label><input type="email" name="email" required placeholder="voce@email.com"></div>
@@ -282,8 +181,8 @@ function renderForgot(){
     <div class="auth-card">
       <h1>Redefinir senha</h1>
       <p class="sub">Informe o e-mail da sua conta. Enviaremos um link para criar uma nova senha.</p>
-      ${authMsg && authMsg.type==='error' ? `<div class="auth-error">${authMsg.text}</div>` : ''}
-      ${authMsg && authMsg.type==='ok' ? `<div class="auth-ok">${authMsg.text}</div>` : ''}
+      ${authMsg && authMsg.type==='error' ? `<div class="auth-error">${esc(authMsg.text)}</div>` : ''}
+      ${authMsg && authMsg.type==='ok' ? `<div class="auth-ok">${esc(authMsg.text)}</div>` : ''}
       <form id="forgotForm">
         <div class="field"><label>E-mail</label><input type="email" name="email" required placeholder="voce@email.com"></div>
         <button class="btn" type="submit">Enviar link</button>
@@ -299,7 +198,7 @@ function renderRecovery(){
     <div class="auth-card">
       <h1>Nova senha</h1>
       <p class="sub">Escolha uma nova senha para a sua conta.</p>
-      ${authMsg && authMsg.type==='error' ? `<div class="auth-error">${authMsg.text}</div>` : ''}
+      ${authMsg && authMsg.type==='error' ? `<div class="auth-error">${esc(authMsg.text)}</div>` : ''}
       <form id="recoveryForm">
         <div class="field"><label>Nova senha</label><input type="password" name="senha" required minlength="6" placeholder="Mínimo de 6 caracteres"></div>
         <div class="field"><label>Repita a nova senha</label><input type="password" name="senha2" required minlength="6"></div>
@@ -381,7 +280,7 @@ function renderApp(){
     <nav class="rail">
       <div class="rail-title">Estoque</div>
       <div class="rail-sub">Manutenção do condomínio</div>
-      <div class="rail-who">Logado como<br><b>${profile.nome || session.user.email}</b> · ${PAPEL_LABEL[profile.papel]}</div>
+      <div class="rail-who">Logado como<br><b>${esc(profile.nome || session.user.email)}</b> · ${PAPEL_LABEL[profile.papel]}</div>
       ${tabs.map(([id,label])=>`
         <button data-tab="${id}" class="${activeTab===id?'active':''}">
           <span class="dot"></span>${label}
@@ -433,10 +332,10 @@ function renderDashboard(){
       <table><tr><th>Data</th><th>Item</th><th>Tipo</th><th>Qtd.</th><th>Nota fiscal</th></tr>
       ${recentMovs.map(m=>{
         const item = state.items.find(i=>i.id===m.item_id);
-        return `<tr><td class="num">${fmtDataBR(m.data)}</td><td>${item?item.nome:'—'}</td>
+        return `<tr><td class="num">${fmtDataBR(m.data)}</td><td>${esc(item?item.nome:'—')}</td>
           <td>${m.tipo==='entrada'?'Entrada':'Saída'}</td>
-          <td class="num">${fmtNum(m.quantidade)} ${item?item.unidade:''}</td>
-          <td>${m.nota_fiscal || '—'}</td></tr>`;
+          <td class="num">${fmtNum(m.quantidade)} ${esc(item?item.unidade:'')}</td>
+          <td>${esc(m.nota_fiscal || '—')}</td></tr>`;
       }).join('')}</table>`}
     </div>`;
 }
@@ -444,9 +343,9 @@ function rowAlerta(i){
   const cls = i._status==='crit' ? 'row-crit' : 'row-warn';
   const pill = i._status==='crit' ? `<span class="status-pill status-crit">Crítico</span>` : `<span class="status-pill status-warn">Atenção</span>`;
   return `<tr class="${cls}">
-    <td>${i.nome}</td><td class="num">${fmtNum(i.estoque_atual)} ${i.unidade}</td>
-    <td class="num">${fmtNum(i.estoque_minimo)} ${i.unidade}</td>
-    <td class="num">${fmtNum(i._consumo)} ${i.unidade}</td>
+    <td>${esc(i.nome)}</td><td class="num">${fmtNum(i.estoque_atual)} ${esc(i.unidade)}</td>
+    <td class="num">${fmtNum(i.estoque_minimo)} ${esc(i.unidade)}</td>
+    <td class="num">${fmtNum(i._consumo)} ${esc(i.unidade)}</td>
     <td class="num">${fmtDias(i._dias)}</td><td>${pill}</td></tr>`;
 }
 
@@ -462,7 +361,7 @@ function renderItens(){
     <div class="panel">
       <h3>${editing ? 'Editar item' : 'Novo item'}</h3>
       <form id="itemForm" class="inline-form">
-        <div class="field"><label>Nome</label><input name="nome" required value="${editing?editing.nome:''}" placeholder="Ex.: Lâmpada LED 9W"></div>
+        <div class="field"><label>Nome</label><input name="nome" required value="${esc(editing?editing.nome:'')}" placeholder="Ex.: Lâmpada LED 9W"></div>
         <div class="field"><label>Categoria</label><select name="categoria">${CATEGORIAS.map(c=>`<option ${editing&&editing.categoria===c?'selected':''}>${c}</option>`).join('')}</select></div>
         <div class="field"><label>Unidade</label><select name="unidade">${UNIDADES.map(u=>`<option ${editing&&editing.unidade===u?'selected':''}>${u}</option>`).join('')}</select></div>
         <div class="field"><label>Estoque atual</label><input type="number" step="0.01" min="0" name="estoque_atual" required value="${editing?editing.estoque_atual:''}"></div>
@@ -479,9 +378,9 @@ function renderItens(){
       <table><tr><th>Item</th><th>Categoria</th><th>Estoque</th><th>Mínimo</th><th>Status</th>${write?'<th></th>':''}</tr>
       ${items.map(i=>`
         <tr class="${i._status==='crit'?'row-crit':i._status==='warn'?'row-warn':''}">
-          <td>${i.nome}</td><td><span class="tag">${i.categoria}</span></td>
-          <td class="num">${fmtNum(i.estoque_atual)} ${i.unidade}</td>
-          <td class="num">${fmtNum(i.estoque_minimo)} ${i.unidade}</td>
+          <td>${esc(i.nome)}</td><td><span class="tag">${esc(i.categoria)}</span></td>
+          <td class="num">${fmtNum(i.estoque_atual)} ${esc(i.unidade)}</td>
+          <td class="num">${fmtNum(i.estoque_minimo)} ${esc(i.unidade)}</td>
           <td>${i._status==='crit'?'<span class="status-pill status-crit">Crítico</span>':i._status==='warn'?'<span class="status-pill status-warn">Atenção</span>':'<span class="status-pill status-ok">Ok</span>'}</td>
           ${write ? `<td><button class="icon-btn" data-edit-item="${i.id}">Editar</button>
           <button class="icon-btn" data-del-item="${i.id}" ${isSindico()?'':'disabled title="Só o síndico pode excluir"'}>Excluir</button></td>` : ''}
@@ -493,7 +392,7 @@ function renderItens(){
 function renderMovimentos(){
   const list = [...state.movements].sort((a,b)=> b.data.localeCompare(a.data));
   const filtered = movFilter==='todos' ? list : list.filter(m=>m.tipo===movFilter);
-  const itemOptions = state.items.map(i=>`<option value="${i.id}">${i.nome}</option>`).join('');
+  const itemOptions = state.items.map(i=>`<option value="${i.id}">${esc(i.nome)}</option>`).join('');
   const write = canWrite();
   return `
     <div class="page-head"><div><h1>Movimentações de estoque</h1><p>Registre entradas (compras) e saídas (uso) dos itens.</p></div></div>
@@ -527,12 +426,12 @@ function renderMovimentos(){
       <table><tr><th>Data</th><th>Item</th><th>Tipo</th><th>Qtd.</th><th>Fornecedor / NF</th><th>Valor</th><th>Resp.</th>${isSindico()?'<th></th>':''}</tr>
       ${filtered.map(m=>{
         const item = state.items.find(i=>i.id===m.item_id);
-        return `<tr><td class="num">${fmtDataBR(m.data)}</td><td>${item ? item.nome : '<em>item removido</em>'}</td>
+        return `<tr><td class="num">${fmtDataBR(m.data)}</td><td>${item ? esc(item.nome) : '<em>item removido</em>'}</td>
           <td>${m.tipo==='entrada'?'Entrada':'Saída'}</td>
-          <td class="num">${fmtNum(m.quantidade)} ${item?item.unidade:''}</td>
-          <td>${m.fornecedor||'—'}${m.nota_fiscal?' · '+m.nota_fiscal:''}</td>
+          <td class="num">${fmtNum(m.quantidade)} ${esc(item?item.unidade:'')}</td>
+          <td>${esc(m.fornecedor||'—')}${m.nota_fiscal?' · '+esc(m.nota_fiscal):''}</td>
           <td class="num">${m.valor?('R$ '+fmtNum(m.valor)):'—'}</td>
-          <td>${m.responsavel||'—'}</td>
+          <td>${esc(m.responsavel||'—')}</td>
           ${isSindico() ? `<td><button class="icon-btn" data-del-mov="${m.id}">Excluir</button></td>` : ''}
         </tr>`;
       }).join('')}</table>`}
@@ -558,8 +457,8 @@ function renderConsumo(){
       ${items.length===0 ? `<div class="empty">Nenhum item cadastrado.</div>` : `
       <table><tr><th>Item</th><th>Estoque atual</th><th>Consumo médio/mês</th><th>Dias restantes estimados</th></tr>
       ${items.map(i=>`<tr class="${i._status==='crit'?'row-crit':i._status==='warn'?'row-warn':''}">
-        <td>${i.nome}</td><td class="num">${fmtNum(i.estoque_atual)} ${i.unidade}</td>
-        <td class="num">${fmtNum(i._consumo)} ${i.unidade}</td><td class="num">${fmtDias(i._dias)}</td></tr>`).join('')}
+        <td>${esc(i.nome)}</td><td class="num">${fmtNum(i.estoque_atual)} ${esc(i.unidade)}</td>
+        <td class="num">${fmtNum(i._consumo)} ${esc(i.unidade)}</td><td class="num">${fmtDias(i._dias)}</td></tr>`).join('')}
       </table>`}
     </div>`;
 }
@@ -592,7 +491,7 @@ function renderUsuarios(){
       <table><tr><th>Nome</th><th>Papel</th><th></th></tr>
       ${state.profiles.map(p=>`
         <tr>
-          <td>${p.nome || '(sem nome)'} ${p.id===profile.id ? '<span class="role-pill">você</span>' : ''}</td>
+          <td>${esc(p.nome || '(sem nome)')} ${p.id===profile.id ? '<span class="role-pill">você</span>' : ''}</td>
           <td><span class="role-pill">${PAPEL_LABEL[p.papel]}</span></td>
           <td>
             ${(()=>{
@@ -720,6 +619,3 @@ function attachAppHandlers(){
 }
 
 boot();
-</script>
-</body>
-</html>
