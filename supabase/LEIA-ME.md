@@ -28,6 +28,7 @@ Cada arquivo pode ser repetido sem estragar nada.
 - Só o superadmin define síndico; só o síndico aprova compras.
 
 ## Testes (rodam em Postgres local, nada é salvo)
+- Tudo de uma vez: `PGHOST=… PGPORT=… PGUSER=postgres bash tests/rodar.sh` (cria um banco temporário e apaga no fim).
 - `tests/02_cenarios.sql`: cenários A–H e segurança (174 verificações, todas passando).
 - `tests/03_concorrencia.sh`: duas retiradas simultâneas; só uma passa.
 - `tests/00_stub_supabase.sql` e `01_legado_seed.sql` simulam o Supabase e os dados antigos.

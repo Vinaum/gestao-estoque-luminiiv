@@ -64,7 +64,7 @@ def main():
                 pg.route(re.compile(r'https://fonts\..*'),lambda r:r.fulfill(status=200,body=''))
                 sess={'access_token':jwt(uid),'refresh_token':'r','expires_in':3600,'expires_at':4102444800,'token_type':'bearer','user':{'id':uid,'email':'x@t.com','aud':'authenticated'}}
                 pg.add_init_script(f"localStorage.setItem('sb-{REF}-auth-token', {json.dumps(json.dumps(sess))});")
-                pg.goto(f'http://localhost:{PORTA}/app/index.html#/{rota}'); pg.wait_for_selector('#pagina table, #pagina .empty, #pagina .panel',timeout=8000)
+                pg.goto(f'http://localhost:{PORTA}/{os.environ.get("APP_CAMINHO", "app")}/index.html#/{rota}'); pg.wait_for_selector('#pagina table, #pagina .empty, #pagina .panel',timeout=8000)
                 return nav,pg,erros,ch
 
             # ============ FORNECEDORES (gestor)

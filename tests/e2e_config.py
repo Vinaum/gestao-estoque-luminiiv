@@ -42,7 +42,7 @@ def main():
             sess={'access_token':jwt(UID),'refresh_token':'r','expires_in':3600,'expires_at':4102444800,'token_type':'bearer','user':{'id':UID,'email':'g@t.com','aud':'authenticated'}}
             pg.add_init_script(f"localStorage.setItem('sb-{REF}-auth-token', {json.dumps(json.dumps(sess))});")
             # ---- Configuração
-            pg.goto(f'http://localhost:{PORTA}/app/index.html#/config-estoque')
+            pg.goto(f'http://localhost:{PORTA}/{os.environ.get("APP_CAMINHO", "app")}/index.html#/config-estoque')
             pg.wait_for_selector('#tab table',timeout=8000)
             ok(pg.locator('#tab tbody tr').count()==1,'inativos ficam escondidos por padrão')
             ok(pg.locator('[data-campo=ideal]').input_value()=='1500','ideal 1500 aparece sem ponto de milhar')
@@ -65,7 +65,7 @@ def main():
             c=[x for x in chamadas if x[0]=='itens.update']
             ok(len(c)==1 and c[0][1]['nome']=='Papel toalha 2f' and c[0][1]['ativo'] is True and 'unidade_id' not in c[0][1],'editar envia nome e não troca a unidade')
             # ---- Estoque atual
-            pg.goto(f'http://localhost:{PORTA}/app/index.html#/estoque'); pg.wait_for_selector('.panel table',timeout=8000)
+            pg.goto(f'http://localhost:{PORTA}/{os.environ.get("APP_CAMINHO", "app")}/index.html#/estoque'); pg.wait_for_selector('.panel table',timeout=8000)
             linhas=pg.locator('.panel').nth(1).locator('tbody tr').all_inner_texts()
             ok(len(linhas)==2 and 'L001' in linhas[0] and 'Vencido' in linhas[0],'lotes ordenados por validade, vencido primeiro')
             ok('R$' in pg.inner_text('.panel >> nth=1') and '150,00' in pg.inner_text('.panel >> nth=1'),'valor total em estoque (R$ 150,00)')

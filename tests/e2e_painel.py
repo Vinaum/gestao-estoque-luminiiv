@@ -43,7 +43,7 @@ def main():
             pg.route(re.compile(r'https://fonts\..*'),lambda r:r.fulfill(status=200,body=''))
             sess={'access_token':jwt(UID),'refresh_token':'r','expires_in':3600,'expires_at':4102444800,'token_type':'bearer','user':{'id':UID,'email':'s@t.com','aud':'authenticated'}}
             pg.add_init_script(f"localStorage.setItem('sb-{REF}-auth-token', {json.dumps(json.dumps(sess))});")
-            pg.goto(f'http://localhost:{PORTA}/app/index.html'); pg.wait_for_selector('.cards.oito',timeout=8000)
+            pg.goto(f'http://localhost:{PORTA}/{os.environ.get("APP_CAMINHO", "app")}/index.html'); pg.wait_for_selector('.cards.oito',timeout=8000)
             ok(pg.evaluate('location.hash')=='#/painel','síndico entra direto no painel')
             cards={c.locator('.k').inner_text():c.locator('.v').inner_text() for c in pg.locator('.cards .card').all()}
             ok(cards['Itens cadastrados']=='4' and cards['Para comprar']=='1' and cards['Esgotados']=='1' and cards['Em atenção']=='1','indicadores: 4 itens, 1 comprar, 1 esgotado, 1 em atenção')

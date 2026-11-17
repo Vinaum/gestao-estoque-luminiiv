@@ -53,7 +53,7 @@ def main():
             pg.locator('tr', has_text='Cond B').locator('[data-acao=sindico]').click(); pg.wait_for_selector('.modal form'); pg.fill('#s-email', 'novo.sindico@x.com'); pg.click('.modal button[type=submit]'); pg.wait_for_selector('.modal', state='detached')
             c = [x for x in ch if x[0] == 'convidar_membro']
             ok(len(c) == 1 and c[0][1] == {'p_condominio_id': CB, 'p_email': 'novo.sindico@x.com', 'p_papel': 'sindico'}, 'definir síndico chama convidar_membro com papel sindico')
-            pg.click('[data-aba=pessoas]'); pg.wait_for_selector('#pagina table')
+            pg.click('[data-aba=pessoas]'); esperar(pg, "document.querySelector('#pagina').innerText.includes('Gestora')")
             ok('Gestora' in pg.inner_text('#pagina') and 'superadmin' in pg.inner_text('#pagina'), 'aba Pessoas lista as contas')
             pg.click('[data-aba=catalogos]'); pg.wait_for_selector('[data-acao=edita-cat]'); pg.click('[data-acao=edita-cat]'); pg.wait_for_selector('.modal form'); pg.fill('#k-n', 'Limpeza geral'); pg.click('.modal button[type=submit]'); pg.wait_for_selector('.modal', state='detached')
             c = [x for x in ch if x[0] == 'PATCH categorias']

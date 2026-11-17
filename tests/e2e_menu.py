@@ -42,7 +42,7 @@ def rodar(pw, nome, c, nome_perfil='Pessoa Teste', nome_cond=None):
     sessao = {'access_token': jwt(c['uid']), 'refresh_token': 'r', 'expires_in': 3600, 'expires_at': 4102444800, 'token_type': 'bearer',
               'user': {'id': c['uid'], 'email': nome + '@teste.com', 'aud': 'authenticated', 'role': 'authenticated'}}
     pg.add_init_script(f"localStorage.setItem('sb-{REF}-auth-token', {json.dumps(json.dumps(sessao))});")
-    pg.goto(f'http://localhost:{PORTA}/app/index.html')
+    pg.goto(f'http://localhost:{PORTA}/{os.environ.get("APP_CAMINHO", "app")}/index.html')
     pg.wait_for_selector('.rail, .auth-card', timeout=8000)
     return nav, pg, erros
 
@@ -64,10 +64,10 @@ def main():
                     sel = pg.locator('#sel-cond').input_value()
                     print(('OK   ' if sel == COND_B else 'FALHOU'), 'troca de condomínio'); falhou |= sel != COND_B
                 if nome == 'gestor':
-                    pg.goto(f'http://localhost:{PORTA}/app/index.html#/usuarios'); pg.wait_for_timeout(400)
+                    pg.goto(f'http://localhost:{PORTA}/{os.environ.get("APP_CAMINHO", "app")}/index.html#/usuarios'); pg.wait_for_timeout(400)
                     h = pg.evaluate('location.hash')
                     print(('OK   ' if h == '#/operacao' else 'FALHOU'), 'gestor não entra em #/usuarios ->', h); falhou |= h != '#/operacao'
-                    pg.goto(f'http://localhost:{PORTA}/app/index.html#/admin'); pg.wait_for_timeout(400)
+                    pg.goto(f'http://localhost:{PORTA}/{os.environ.get("APP_CAMINHO", "app")}/index.html#/admin'); pg.wait_for_timeout(400)
                     h = pg.evaluate('location.hash')
                     print(('OK   ' if h == '#/operacao' else 'FALHOU'), 'gestor não entra em #/admin ->', h); falhou |= h != '#/operacao'
                 nav.close()
@@ -84,7 +84,7 @@ def main():
             # sem sessão: tela de login
             nav = pw.chromium.launch(); pg = nav.new_page()
             pg.route(re.compile(r'https://fonts\..*'), lambda r: r.fulfill(status=200, body=''))
-            pg.goto(f'http://localhost:{PORTA}/app/index.html'); pg.wait_for_selector('.auth-card')
+            pg.goto(f'http://localhost:{PORTA}/{os.environ.get("APP_CAMINHO", "app")}/index.html'); pg.wait_for_selector('.auth-card')
             ok = pg.locator('#a-email').count() == 1 and pg.locator('#a-senha').count() == 1
             print(('OK   ' if ok else 'FALHOU'), 'sem sessão mostra o login'); falhou |= not ok
             pg.click('[data-modo=signup]'); ok = pg.locator('#a-nome').count() == 1

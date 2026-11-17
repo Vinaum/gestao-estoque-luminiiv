@@ -1,25 +1,7 @@
-# Sistema operacional
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# Editores e backups
-.vscode/
-.idea/
-*.swp
-*.save
-*~
-
-# Segredos (nunca envie chaves privadas)
 .env
 .env.*
-*.pem
-*secret*
-service_role*
-
-# Dependências e testes locais
 node_modules/
-coverage/
-
-# Logs
-*.log
+*.save
+*.bak
+.DS_Store
+__pycache__/
