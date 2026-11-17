@@ -21,6 +21,9 @@ Decisões do síndico (17/11/2026). A tabela abaixo é o que o sistema faz hoje;
 | Ligar pessoa ou convite a um apartamento | ✓ | ✓ | – | – |
 | Ler comunicados publicados (os do seu público) | ✓ | ✓ | ✓ | ✓ |
 | Criar, editar, publicar, arquivar comunicado; ver quem leu | ✓ | ✓ | ✓ | – |
+| Ver prestadores publicados e recomendar | ✓ | ✓ | ✓ | ✓ (com apartamento) |
+| Indicar prestador | ✓ (publica direto) | ✓ (publica direto) | com apartamento (fica pendente) | com apartamento (fica pendente) |
+| Aprovar, recusar, remover prestador; remover comentário | ✓ | ✓ | – | – |
 | Criar condomínio, definir síndico, catálogos | ✓ | – | – | – |
 
 ## Em aberto

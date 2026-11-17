@@ -14,6 +14,7 @@ export const ROTAS = [
   { id: 'consumo',        titulo: 'Consumo',                papeis: EQUIPE,  grupo: 'Análises', modulo: './modules/relatorios/consumo.js' },
   { id: 'gastos',         titulo: 'Relatórios de gastos',   papeis: EQUIPE, grupo: 'Análises', modulo: './modules/relatorios/gastos.js' },
   { id: 'comunicados',     titulo: 'Comunicados',            papeis: ['gestor', 'sindico', 'superadmin', 'morador'], grupo: 'Comunidade', modulo: './modules/comunicados/comunicados.js' },
+  { id: 'prestadores',     titulo: 'Prestadores',            papeis: ['gestor', 'sindico', 'superadmin', 'morador'], grupo: 'Comunidade', modulo: './modules/prestadores/prestadores.js' },
   { id: 'usuarios',       titulo: 'Usuários',               papeis: SINDICO, grupo: 'Condomínio', modulo: './modules/usuarios/usuarios.js' },
   { id: 'torres',          titulo: 'Torres e apartamentos',  papeis: SINDICO, grupo: 'Condomínio', modulo: './modules/torres/torres.js' },
   { id: 'admin',          titulo: 'Administração',          papeis: ['superadmin'], grupo: 'Sistema', modulo: './modules/admin/admin.js' },

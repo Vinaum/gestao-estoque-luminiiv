@@ -66,6 +66,11 @@ end $$;
 grant execute on all functions in schema tests to authenticated, anon;
 
 -- atalhos para as pessoas
+-- Leituras das tabelas de prestadores como dono (as tabelas são fechadas para os usuários).
+create function tests.pr(p_id uuid, p_col text) returns text language sql security definer as $$ select to_jsonb(p) ->> p_col from public.prestadores p where p.id = p_id $$;
+create function tests.nrec(p_id uuid) returns bigint language sql security definer as $$ select count(*) from public.prestador_recomendacoes where prestador_id = p_id $$;
+create function tests.nind(p_uid uuid) returns bigint language sql security definer as $$ select count(*) from public.prestadores where indicado_por = p_uid $$;
+create function tests.reccom(p_id uuid, p_uid uuid) returns text language sql security definer as $$ select comentario from public.prestador_recomendacoes where prestador_id = p_id and user_id = p_uid $$;
 create function tests.super() returns uuid language sql as $$ select '00000000-0000-0000-0000-0000000000a1'::uuid $$;
 create function tests.sind()  returns uuid language sql as $$ select '00000000-0000-0000-0000-0000000000a2'::uuid $$;
 create function tests.gest()  returns uuid language sql as $$ select '00000000-0000-0000-0000-0000000000a3'::uuid $$;
@@ -1120,6 +1125,193 @@ begin
   perform tests.login(tests.sind());
   select count(*) into n from public.auditoria where tabela = 'comunicados' and condominio_id = v_a;
   perform tests.ok('C criação, edição, publicação e arquivamento ficam na auditoria', n >= 10);
+  perform tests.logout();
+end $$;
+
+-- ============================================================
+-- Prestadores
+-- ============================================================
+do $$
+declare
+  v_a uuid := tests.id('condA'); v_b uuid := tests.id('condB');
+  v_mor uuid := tests.mor(); v_e3 uuid := '00000000-0000-0000-0000-0000000000e3'; v_e4 uuid := '00000000-0000-0000-0000-0000000000e4';
+  v_bs uuid := '00000000-0000-0000-0000-0000000000b2';
+  p1 uuid; p2 uuid; p3 uuid; ps uuid; r jsonb; x jsonb; n int; i int;
+begin
+  raise notice '--- Prestadores ---';
+  update public.profiles set nome = 'Maria Souza' where id = v_mor;
+  update public.profiles set nome = 'João Lima' where id = v_e3;
+
+  -- as tabelas não são lidas diretamente
+  perform tests.login(v_mor);
+  perform tests.erro('P morador não lê a tabela de prestadores', 'select count(*) from public.prestadores', 'permission denied');
+  perform tests.erro('P nem as recomendações', 'select count(*) from public.prestador_recomendacoes', 'permission denied');
+  perform tests.erro('P nem escreve direto', format('insert into public.prestadores (condominio_id, nome, servico, telefone, status) values (%L, ''X'', ''pedreiro'', ''11988887777'', ''publicado'')', v_a), 'permission denied');
+
+  -- indicar: entra pendente, telefone só com dígitos
+  r := public.indicar_prestador(v_a, jsonb_build_object('nome', 'Carlos Marceneiro', 'servico', 'Marceneiro', 'telefone', '(11) 98888-7777', 'observacao', 'Caprichoso e pontual'));
+  p1 := (r ->> 'id')::uuid;
+  perform tests.ok('P indicação criada', p1 is not null and r -> 'duplicado' = 'null'::jsonb);
+  perform tests.texto('P entra pendente', tests.pr(p1, 'status'), 'pendente');
+  perform tests.texto('P telefone guardado só com dígitos', tests.pr(p1, 'telefone'), '11988887777');
+  perform tests.erro('P nome curto', format('select public.indicar_prestador(%L, ''{"nome":"A","servico":"pedreiro","telefone":"11988880000"}'')', v_a), 'nome');
+  perform tests.erro('P serviço vazio', format('select public.indicar_prestador(%L, ''{"nome":"Ana","servico":" ","telefone":"11988880000"}'')', v_a), 'tipo de serviço');
+  perform tests.erro('P telefone inválido', format('select public.indicar_prestador(%L, ''{"nome":"Ana","servico":"diarista","telefone":"123"}'')', v_a), 'Telefone inválido');
+  perform tests.erro('P observação longa', format('select public.indicar_prestador(%L, jsonb_build_object(''nome'',''Ana'',''servico'',''diarista'',''telefone'',''11988880000'',''observacao'', repeat(''x'', 201)))', v_a), '200 caracteres');
+  perform tests.erro('P mesmo telefone pendente', format('select public.indicar_prestador(%L, ''{"nome":"Outro","servico":"pedreiro","telefone":"+55 11 98888 7777"}'')', v_a), 'aguarda aprovação');
+  perform tests.logout();
+
+  -- sem apartamento não indica nem recomenda; gestor sem apartamento também não
+  perform tests.login(v_e4);
+  perform tests.erro('P morador sem apartamento não indica', format('select public.indicar_prestador(%L, ''{"nome":"Ana","servico":"diarista","telefone":"11977776666"}'')', v_a), 'apartamento');
+  perform tests.logout();
+  perform tests.login(tests.gest());
+  perform tests.erro('P gestor sem apartamento não indica', format('select public.indicar_prestador(%L, ''{"nome":"Ana","servico":"diarista","telefone":"11977776666"}'')', v_a), 'apartamento');
+  perform tests.logout();
+
+  -- limite de 5 pendentes
+  perform tests.login(v_mor);
+  for i in 1..4 loop
+    perform public.indicar_prestador(v_a, jsonb_build_object('nome', 'Prestador ' || i, 'servico', 'pedreiro', 'telefone', '1196000000' || i));
+  end loop;
+  perform tests.erro('P sexta indicação pendente é recusada', format('select public.indicar_prestador(%L, ''{"nome":"Prestador 6","servico":"pedreiro","telefone":"11960000009"}'')', v_a), '5 indicações');
+  perform tests.logout();
+
+  -- quem vê o quê enquanto pendente
+  perform tests.login(v_mor);
+  perform tests.igual('P quem indicou vê as suas 5 pendentes', jsonb_array_length(public.listar_prestadores(v_a)), 5);
+  perform tests.logout();
+  perform tests.login(v_e3);
+  perform tests.igual('P outro morador não vê pendentes', jsonb_array_length(public.listar_prestadores(v_a)), 0);
+  perform tests.logout();
+  perform tests.login(tests.gest());
+  perform tests.igual('P gestor não vê pendentes', jsonb_array_length(public.listar_prestadores(v_a)), 0);
+  perform tests.logout();
+  perform tests.login(tests.sind());
+  r := public.listar_prestadores(v_a);
+  perform tests.igual('P síndico vê todas as pendentes', jsonb_array_length(r), 5);
+  perform tests.texto('P indicador aparece com nome e unidade', (select e -> 'indicador' ->> 'unidade' from jsonb_array_elements(r) e where e ->> 'id' = p1::text), 'Torre 2 · Apto 32');
+  perform tests.texto('P nome do indicador', (select e -> 'indicador' ->> 'nome' from jsonb_array_elements(r) e where e ->> 'id' = p1::text), 'Maria Souza');
+  perform tests.logout();
+  perform tests.login(v_bs);
+  perform tests.erro('P síndico de outro condomínio não lista', format('select public.listar_prestadores(%L)', v_a), 'Sem permissão');
+  perform tests.erro('P nem indica', format('select public.indicar_prestador(%L, ''{"nome":"Ana","servico":"diarista","telefone":"11977776666"}'')', v_a), 'Sem permissão');
+  perform tests.erro('P nem decide', format('select public.decidir_prestador(%L, ''aprovar'')', p1), 'Sem permissão');
+  perform tests.logout();
+
+  -- decisão: só o síndico
+  perform tests.login(tests.gest());
+  perform tests.erro('P gestor não aprova', format('select public.decidir_prestador(%L, ''aprovar'')', p1), 'Sem permissão');
+  perform tests.logout();
+  perform tests.login(v_mor);
+  perform tests.erro('P morador não aprova a própria indicação', format('select public.decidir_prestador(%L, ''aprovar'')', p1), 'Sem permissão');
+  perform tests.logout();
+  perform tests.login(tests.sind());
+  select (e ->> 'id')::uuid into p2 from jsonb_array_elements(public.listar_prestadores(v_a)) e where e ->> 'nome' = 'Prestador 1';
+  perform tests.erro('P recusar exige motivo', format('select public.decidir_prestador(%L, ''recusar'')', p2), 'motivo');
+  perform tests.erro('P ação inválida', format('select public.decidir_prestador(%L, ''apagar'')', p2), 'Ação inválida');
+  perform tests.erro('P não remove quem não está publicado', format('select public.decidir_prestador(%L, ''remover'')', p2), 'publicado');
+  perform public.decidir_prestador(p2, 'recusar', 'Já temos um bom pedreiro na lista');
+  perform tests.texto('P recusado guarda o motivo', tests.pr(p2, 'motivo'), 'Já temos um bom pedreiro na lista');
+  perform tests.erro('P não recusa duas vezes', format('select public.decidir_prestador(%L, ''recusar'', ''x'')', p2), 'pendente');
+  perform public.decidir_prestador(p1, 'aprovar');
+  perform tests.texto('P síndico aprova', tests.pr(p1, 'status'), 'publicado');
+  perform tests.erro('P não aprova de novo', format('select public.decidir_prestador(%L, ''aprovar'')', p1), 'pendente');
+  perform tests.logout();
+
+  -- recusado: quem indicou vê o motivo, edita e volta para pendente
+  perform tests.login(v_mor);
+  x := (select e from jsonb_array_elements(public.listar_prestadores(v_a)) e where e ->> 'id' = p2::text);
+  perform tests.ok('P morador vê o motivo da recusa', x ->> 'status' = 'recusado' and x ->> 'motivo' like 'Já temos%');
+  perform public.editar_prestador(p2, '{"nome":"Prestador 1 corrigido","servico":"pedreiro","telefone":"11960000001","observacao":"Trabalhou no meu apto"}');
+  perform tests.texto('P edição de recusado volta para pendente', tests.pr(p2, 'status'), 'pendente');
+  perform tests.ok('P e limpa o motivo', (tests.pr(p2, 'motivo') is null));
+  perform tests.logout();
+
+  -- publicado: todos do condomínio veem, com telefone e unidade de quem indicou
+  perform tests.login(v_e3);
+  r := public.listar_prestadores(v_a);
+  perform tests.igual('P outro morador vê só o publicado', jsonb_array_length(r), 1);
+  perform tests.texto('P vê o telefone', r -> 0 ->> 'telefone', '11988887777');
+  perform tests.texto('P vê quem indicou e a unidade', (r -> 0 -> 'indicador' ->> 'nome') || ' / ' || (r -> 0 -> 'indicador' ->> 'unidade'), 'Maria Souza / Torre 2 · Apto 32');
+  perform tests.erro('P só quem indicou edita a pendente', format('select public.editar_prestador(%L, ''{"nome":"Zé","servico":"pedreiro","telefone":"11955554444"}'')', p2), 'Sem permissão');
+  -- indicar telefone já publicado: não cria, sugere recomendar
+  r := public.indicar_prestador(v_a, '{"nome":"Carlos de novo","servico":"marceneiro","telefone":"11 98888-7777"}');
+  perform tests.ok('P telefone já publicado: devolve o existente e não cria', (r ->> 'duplicado')::uuid = p1 and r -> 'id' = 'null'::jsonb);
+  perform tests.igual('P nenhuma indicação nova foi criada', tests.nind(v_e3), 0);
+  perform tests.logout();
+  perform tests.login(v_mor);
+  perform tests.erro('P publicado: quem indicou não edita mais', format('select public.editar_prestador(%L, ''{"nome":"Carlos","servico":"marceneiro","telefone":"11988887777"}'')', p1), 'Sem permissão');
+  perform tests.erro('P não recomenda a própria indicação', format('select public.recomendar_prestador(%L, ''ótimo'')', p1), 'já indicou');
+  perform tests.logout();
+
+  -- recomendar
+  perform tests.login(v_e4);
+  perform tests.erro('P sem apartamento não recomenda', format('select public.recomendar_prestador(%L)', p1), 'apartamento');
+  perform tests.logout();
+  perform tests.login(v_e3);
+  perform tests.erro('P não recomenda pendente', format('select public.recomendar_prestador(%L)', p2), 'publicado');
+  perform tests.erro('P comentário acima de 200', format('select public.recomendar_prestador(%L, repeat(''x'', 201))', p1), '200 caracteres');
+  perform public.recomendar_prestador(p1, 'Fez meu armário, recomendo');
+  perform public.recomendar_prestador(p1, 'Fez meu armário, muito bom');
+  perform tests.igual('P recomendar de novo só atualiza o comentário', tests.nrec(p1), 1);
+  r := public.listar_prestadores(v_a);
+  perform tests.ok('P lista mostra minha recomendação, nome e unidade',
+    (r -> 0 ->> 'minha_recomendacao')::boolean and r -> 0 -> 'recomendacoes' -> 0 ->> 'unidade' = 'Torre 1 · Apto 13'
+    and r -> 0 -> 'recomendacoes' -> 0 ->> 'comentario' = 'Fez meu armário, muito bom');
+  perform tests.logout();
+  perform tests.login(tests.sind());
+  perform public.recomendar_prestador(p1, null);
+  perform tests.igual('P duas recomendações', tests.nrec(p1), 2);
+  r := public.listar_prestadores(v_a);
+  perform tests.ok('P síndico aparece com o papel no lugar da unidade',
+    exists (select 1 from jsonb_array_elements(r -> 0 -> 'recomendacoes') e where e ->> 'unidade' = 'Síndico'));
+  perform tests.logout();
+  perform tests.login(tests.gest());
+  perform tests.erro('P gestor não limpa comentário de ninguém', format('select public.limpar_comentario_prestador(%L, %L)', p1, v_e3), 'Sem permissão');
+  perform tests.logout();
+  perform tests.login(tests.sind());
+  perform public.limpar_comentario_prestador(p1, v_e3);
+  perform tests.ok('P síndico limpa o comentário e a recomendação continua',
+    (tests.reccom(p1, v_e3) is null));
+  perform tests.logout();
+  perform tests.login(v_e3);
+  perform public.retirar_recomendacao(p1);
+  perform tests.igual('P retirar recomendação remove só a minha', tests.nrec(p1), 1);
+  perform public.recomendar_prestador(p1, 'voltei');
+  perform tests.logout();
+
+  -- indicação do síndico entra publicada
+  perform tests.login(tests.sind());
+  r := public.indicar_prestador(v_a, '{"nome":"Dona Rita","servico":"Diarista","telefone":"21 97777-1111"}');
+  ps := (r ->> 'id')::uuid;
+  perform tests.texto('P indicação do síndico já entra publicada', tests.pr(ps, 'status'), 'publicado');
+  perform tests.texto('P síndico indicador aparece como Síndico', (select e -> 'indicador' ->> 'unidade' from jsonb_array_elements(public.listar_prestadores(v_a)) e where e ->> 'id' = ps::text), 'Síndico');
+  perform public.editar_prestador(p1, '{"nome":"Carlos Marceneiro","servico":"Marceneiro","telefone":"11988887777","observacao":"Corrigido pelo síndico"}');
+  perform tests.texto('P síndico edita publicado', tests.pr(p1, 'observacao'), 'Corrigido pelo síndico');
+  perform tests.erro('P telefone igual ao de outro publicado na edição', format('select public.editar_prestador(%L, ''{"nome":"Carlos","servico":"Marceneiro","telefone":"21977771111"}'')', p1), 'outra indicação');
+
+  -- remover: some para todos, menos o síndico
+  perform public.decidir_prestador(p1, 'remover', 'Pediu para sair da lista');
+  perform tests.texto('P removido', tests.pr(p1, 'status'), 'removido');
+  perform tests.ok('P síndico ainda vê o removido', exists (select 1 from jsonb_array_elements(public.listar_prestadores(v_a)) e where e ->> 'id' = p1::text and e ->> 'status' = 'removido'));
+  perform tests.erro('P removido não é editável', format('select public.editar_prestador(%L, ''{"nome":"Carlos","servico":"Marceneiro","telefone":"11988887777"}'')', p1), 'removido');
+  perform tests.logout();
+  perform tests.login(v_e3);
+  perform tests.ok('P morador não vê o removido', not exists (select 1 from jsonb_array_elements(public.listar_prestadores(v_a)) e where e ->> 'id' = p1::text));
+  perform tests.erro('P não recomenda removido', format('select public.recomendar_prestador(%L)', p1), 'publicado');
+  perform tests.logout();
+  perform tests.login(v_mor);
+  perform tests.ok('P nem quem indicou vê o removido', not exists (select 1 from jsonb_array_elements(public.listar_prestadores(v_a)) e where e ->> 'id' = p1::text));
+  perform tests.logout();
+
+  -- nada é apagado; auditoria registra
+  perform tests.igual('P nada foi apagado', (select count(*) from public.prestadores where condominio_id = v_a), 6);
+  perform tests.login(tests.sind());
+  select count(*) into n from public.auditoria where tabela = 'prestadores' and condominio_id = v_a;
+  perform tests.ok('P indicações e decisões ficam na auditoria', n >= 10);
+  select count(*) into n from public.auditoria where tabela = 'prestador_recomendacoes' and condominio_id = v_a;
+  perform tests.ok('P recomendações ficam na auditoria', n >= 3);
   perform tests.logout();
 end $$;
 

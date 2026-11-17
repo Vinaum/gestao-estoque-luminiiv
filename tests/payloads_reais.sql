@@ -71,6 +71,31 @@ begin
   perform public.publicar_comunicado(p_id => id1);
   raise notice 'payloads de comunicados aceitos';
 end $$;
+-- prestadores: exatamente como a tela envia (morador indica e recomenda; síndico decide)
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000a2',true);  -- síndico
+do $$
+declare c uuid; ap uuid; r jsonb; p1 uuid; p2 uuid; l jsonb;
+begin
+  select id into c from public.condominios limit 1;
+  select id into ap from public.apartamentos where numero = '11' limit 1;
+  perform public.definir_apartamento_membro(p_condominio_id => c, p_user_id => '00000000-0000-0000-0000-0000000000a4', p_apartamento_id => ap);
+  execute 'reset role'; perform set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000a4',true); execute 'set local role authenticated';  -- morador
+  r := public.indicar_prestador(p_condominio_id => c, p_dados => '{"nome":"Carlos Marceneiro","servico":"Marceneiro","telefone":"(11) 98888-7777","observacao":"Pontual"}'::jsonb);
+  p1 := (r ->> 'id')::uuid;
+  r := public.indicar_prestador(p_condominio_id => c, p_dados => '{"nome":"Rita","servico":"Diarista","telefone":"21 97777-1234","observacao":""}'::jsonb);
+  p2 := (r ->> 'id')::uuid;
+  perform public.editar_prestador(p_id => p2, p_dados => '{"nome":"Rita Souza","servico":"Diarista","telefone":"(21) 97777-1234","observacao":""}'::jsonb);
+  execute 'reset role'; perform set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000a2',true); execute 'set local role authenticated';  -- síndico
+  perform public.decidir_prestador(p_id => p1, p_acao => 'aprovar', p_motivo => null);
+  perform public.decidir_prestador(p_id => p2, p_acao => 'recusar', p_motivo => 'Já temos');
+  perform public.recomendar_prestador(p_id => p1, p_comentario => 'Excelente');
+  perform public.recomendar_prestador(p_id => p1, p_comentario => null);
+  l := public.listar_prestadores(p_condominio_id => c);
+  perform public.limpar_comentario_prestador(p_id => p1, p_user_id => '00000000-0000-0000-0000-0000000000a2');
+  perform public.retirar_recomendacao(p_id => p1);
+  perform public.decidir_prestador(p_id => p1, p_acao => 'remover', p_motivo => null);
+  raise notice 'payloads de prestadores aceitos';
+end $$;
 select 'torres e apartamentos' as teste, (select count(*) from public.torres) as torres, (select count(*) from public.apartamentos) as apartamentos;
 select 'status após recebimento parcial' as teste, status from public.compras order by criado_em desc limit 1;
 select 'estoque' as teste, estoque_atual, qtd_em_pedido, status, qtd_sugerida from public.v_estoque_item where nome = 'Payload';

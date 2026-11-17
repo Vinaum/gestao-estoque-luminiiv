@@ -20,15 +20,16 @@ Execução: `PGHOST=… PGPORT=… PGUSER=postgres bash supabase/tests/rodar.sh`
 | Convites | Síndico cancela e altera convites comuns; e-mail cancelado pode ser convidado de novo e quem criar conta depois não entra; gestor, morador e síndico de outro condomínio são bloqueados; convite de síndico só o superadmin gerencia; convite já usado não muda; nada se apaga direto na tabela; tudo fica na auditoria |
 | Permissões do gestor | Cadastra e edita fornecedor, mas não ativa/desativa (nem cria já inativo) nem apaga; vê as mesmas compras, gastos e custos que o síndico; continua sem aprovar; morador não vê compras, gastos nem fornecedores |
 | Comunicados | Rascunho/publicado/arquivado; só síndico e gestor escrevem; morador vê só publicado, dentro da validade e do seu público (torre); validade no passado recusada; "editado em" só ao mudar título/texto de publicado; anexo só no caminho do próprio comunicado; leitura marcada uma vez e só para quem é do público; "quem leu" só para a equipe; bucket privado com leitura restrita a quem vê o comunicado; auditoria |
+| Prestadores | Tabelas fechadas (só funções leem); indicação pendente, telefone só com dígitos, validações; apartamento obrigatório (exceto síndico); limite de 5 pendentes; telefone repetido (publicado: sugere recomendar; pendente: recusa); quem vê pendentes, recusados e removidos; só o síndico decide; recusa exige motivo; edição pelo autor e volta a pendente; recomendar uma vez, atualizar comentário, não recomendar a própria indicação nem pendente/removido; síndico limpa comentário; unidade de quem indicou e recomendou; outro condomínio bloqueado; auditoria |
 | Torres e apartamentos | Lote de torres e geração de apartamentos (numeração 01–04, 11–14… e 6 por andar), sem duplicar ao repetir; limites e entradas inválidas; só o síndico escreve; gestor e morador só leem; síndico de outro condomínio bloqueado; apartamento de outro condomínio recusado pela função **e** pela própria tabela; vínculo de morador e de convite; convite leva o apartamento ao criar a conta; não desativa torre ou apartamento com gente vinculada; auditoria |
 | Concorrência | Duas retiradas simultâneas de 8 sobre saldo 10: uma passa, outra é recusada, saldo final 2 |
 
 ## Front — unidade (`tests/*.test.mjs`)
-`html` (escape e `h`), `comunicados` (ordenação, validade, validações), `validacao` (CNPJ, e-mail), `painel` (cálculos), `auditoria` (formatação do histórico), `relatorios` (consumo e gastos).
+`html` (escape e `h`), `comunicados` (ordenação, validade, validações), `prestadores` (telefone, busca, abas), `validacao` (CNPJ, e-mail), `painel` (cálculos), `auditoria` (formatação do histórico), `relatorios` (consumo e gastos).
 
 ## Front — navegador (`tests/e2e_*.py`)
 Playwright com Supabase simulado por interceptação de rede e sessão falsa.
-`menu` (menu e tela inicial de cada papel), `torres` (cadastro de torres e apartamentos), `comunicados` (lista, leitura, editor, anexo, quem leu), `operacao`, `config` (mínimo/ideal), `compras` (editor, aprovação, recebimento), `painel`, `relatorios`, `admin` (condomínios, usuários, diagnóstico).
+`menu` (menu e tela inicial de cada papel), `torres` (cadastro de torres e apartamentos), `comunicados` (lista, leitura, editor, anexo, quem leu), `prestadores` (indicar, recomendar, aprovação do síndico), `operacao`, `config` (mínimo/ideal), `compras` (editor, aprovação, recebimento), `painel`, `relatorios`, `admin` (condomínios, usuários, diagnóstico).
 
 ## Contratos com o banco real
 `tests/payloads_reais.sql` (o banco aceita exatamente o que o front envia), `colunas_views.sql` (colunas usadas existem) e `painel_vs_banco.*` (números do painel batem com somas SQL). Rodam sob demanda, contra um banco com as migrations aplicadas.

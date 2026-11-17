@@ -161,3 +161,19 @@ tr.inativo td{ color:var(--muted); }
 .lista-simples{ list-style:none; padding:0; margin:0 0 8px; max-height:40vh; overflow:auto; }
 .lista-simples li{ padding:6px 0; border-bottom:1px solid #eee9dc; display:flex; justify-content:space-between; gap:12px; }
 .modal h4{ margin:12px 0 6px; font-size:13px; font-family:'Space Grotesk',sans-serif; }
+
+/* Prestadores */
+.aviso-lgpd{ font-size:13px; color:var(--muted); margin:0 0 12px; }
+.barra-filtro{ display:flex; gap:8px; flex-wrap:wrap; margin:0 0 12px; }
+.barra-filtro input{ flex:1 1 220px; }
+.lista-prest{ display:grid; grid-template-columns:repeat(auto-fill,minmax(290px,1fr)); gap:12px; }
+.cartao-prest{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; display:flex; flex-direction:column; gap:6px; }
+.cartao-prest .tags{ display:flex; flex-wrap:wrap; gap:6px; }
+.tag-aviso{ background:#f3e6c4; color:#6b4e00; }
+.cartao-prest .contato{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.cartao-prest .contato a{ text-decoration:none; }
+.obs-prest{ margin:0; font-size:13px; overflow-wrap:anywhere; }
+.link-recs{ all:unset; cursor:pointer; color:var(--ink); text-decoration:underline; font-size:13px; align-self:flex-start; }
+.link-recs:focus-visible{ outline:2px solid var(--ink); outline-offset:2px; }
+.cartao-prest .linha-acoes{ display:flex; gap:6px; flex-wrap:wrap; margin-top:4px; }
+.rec-item{ align-items:flex-start; }
