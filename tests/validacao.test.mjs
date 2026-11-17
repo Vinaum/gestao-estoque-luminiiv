@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import { cnpjValido, formatarCnpj, emailValido } from '../app/js/lib/validacao.js';
+assert.equal(cnpjValido('11.222.333/0001-81'), true);
+assert.equal(cnpjValido('11222333000181'), true);
+assert.equal(cnpjValido('11.222.333/0001-44'), false);
+assert.equal(cnpjValido('00000000000000'), false);
+assert.equal(cnpjValido('123'), false);
+assert.equal(formatarCnpj('11222333000181'), '11.222.333/0001-81');
+assert.equal(emailValido('a@b.com'), true); assert.equal(emailValido('a@b'), false);
+console.log('validacao.test OK');

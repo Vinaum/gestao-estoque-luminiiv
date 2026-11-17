@@ -10,10 +10,10 @@ export function aviso(texto, tipo = '') {
   setTimeout(() => el.remove(), tipo === 'erro' ? 7000 : 4000);
 }
 
-function abrirJanela(conteudo) {
+export function abrirJanela(conteudo, { largo = false } = {}) {
   const fundo = document.createElement('div');
   fundo.className = 'overlay';
-  render(fundo, h`<div class="modal" role="dialog" aria-modal="true">${conteudo}</div>`);
+  render(fundo, h`<div class="modal ${largo ? 'largo' : ''}" role="dialog" aria-modal="true">${conteudo}</div>`);
   document.body.appendChild(fundo);
   return fundo;
 }
@@ -60,12 +60,12 @@ export function mensagemErro(e) {
 }
 
 // Janela com formulário. `aoEnviar` recebe os campos como objeto; se lançar erro, ele aparece na janela.
-export function janelaForm({ titulo, intro = '', corpo, rotulo = 'Salvar', aoEnviar }) {
+export function janelaForm({ titulo, intro = '', corpo, rotulo = 'Salvar', aoEnviar, largo = false }) {
   const fundo = abrirJanela(h`<h3>${titulo}</h3>${intro ? h`<p>${intro}</p>` : ''}
     <form novalidate>${corpo}
       <div class="auth-error hidden" data-erro role="alert"></div>
       <div class="acoes"><button type="button" class="btn ghost" data-fechar>Cancelar</button>
-      <button class="btn" type="submit">${rotulo}</button></div></form>`);
+      <button class="btn" type="submit">${rotulo}</button></div></form>`, { largo });
   const form = fundo.querySelector('form');
   const caixaErro = fundo.querySelector('[data-erro]');
   const botao = form.querySelector('button[type=submit]');
