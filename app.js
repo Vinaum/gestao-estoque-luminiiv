@@ -50,7 +50,7 @@ async function boot(){
   db.auth.onAuthStateChange((event, s)=>{
     session = s;
     if(event==='PASSWORD_RECOVERY'){ recovering = true; renderRoot(); return; }
-    if(!s){ profile=null; renderRoot(); }
+    if(!s){ profile=null; if(canalTempoReal){ db.removeChannel(canalTempoReal); canalTempoReal=null; } renderRoot(); }
   });
   if(recovering){ renderRoot(); }
   else if(session){ await afterLogin(); } else { renderRoot(); }
@@ -99,8 +99,10 @@ async function loadAll(){
   }
 }
 
+let canalTempoReal = null;
 function subscribeRealtime(){
-  db.channel('estoque-changes')
+  if(canalTempoReal){ db.removeChannel(canalTempoReal); canalTempoReal = null; }
+  canalTempoReal = db.channel('estoque-changes')
     .on('postgres_changes', { event:'*', schema:'public', table:'items' }, async ()=>{ await loadAll(); renderRoot(); })
     .on('postgres_changes', { event:'*', schema:'public', table:'movements' }, async ()=>{ await loadAll(); renderRoot(); })
     .on('postgres_changes', { event:'*', schema:'public', table:'settings' }, async ()=>{ await loadAll(); renderRoot(); })
