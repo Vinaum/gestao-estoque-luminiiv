@@ -1,11 +1,12 @@
 import { h, raw, render, on } from '../../lib/html.js';
 import { db } from '../../lib/supabase.js';
-import { estado } from '../../lib/estado.js';
+import { estado, condominioAtual } from '../../lib/estado.js';
 import { num, moeda, dataBR } from '../../lib/format.js';
-import { aviso, mensagemErro } from '../../lib/ui.js';
+import { aviso, abrirJanela, mensagemErro } from '../../lib/ui.js';
 import { pillCompra, STATUS_COMPRA, EM_ABERTO } from './comum.js';
 import { abrirEditor } from './editor.js';
 import { abrirDetalhes } from './detalhes.js';
+import { agruparPorCategoria, contarLista, textoLista, csvLista } from './lista.js';
 
 let aba = 'necessidade';
 let incluirAtencao = false;
@@ -39,6 +40,7 @@ function painelNecessidade() {
         <td class="num">${num(i.estoque_atual)} ${i.unidade}</td><td class="num">${num(i.estoque_minimo)}</td><td class="num">${num(i.estoque_ideal)}</td>
         <td class="num">${num(i.qtd_em_pedido)}</td><td class="num"><b>${num(aComprar(i))} ${i.unidade}</b></td></tr>`)}</tbody></table></div>
       <div class="toolbar" style="margin-top:12px"><span class="dica">${marcados.size} selecionado(s)</span>
+        <button class="btn ghost" data-acao="gerar-lista">Gerar lista de compras</button>
         <button class="btn" data-acao="criar-selecionados" ${marcados.size ? '' : raw('disabled')}>Criar compra com os selecionados</button></div>`
       : h`<div class="empty">Nenhum item precisa de compra agora.${coberto ? ` (${coberto} já coberto(s) por pedidos em andamento.)` : ''}</div>`}</div>`;
 }
@@ -68,6 +70,47 @@ function desenhar() {
     <div id="conteudo">${aba === 'necessidade' ? painelNecessidade() : painelCompras()}</div>`);
 }
 
+// Lista de compras por categoria: dos itens marcados ou, se nenhum estiver marcado, de todos os que precisam de compra.
+function abrirLista() {
+  const base = necessarios();
+  const escolhidos = marcados.size ? base.filter((i) => marcados.has(i.item_id)) : base;
+  const grupos = agruparPorCategoria(escolhidos.map((i) => ({ nome: i.nome, categoria: i.categoria, unidade: i.unidade, qtd: aComprar(i), estoque: i.estoque_atual, minimo: i.estoque_minimo })));
+  const c = contarLista(grupos), agora = new Date();
+  const hoje = `${String(agora.getDate()).padStart(2, '0')}/${String(agora.getMonth() + 1).padStart(2, '0')}/${agora.getFullYear()}`;
+  const nomeCond = condominioAtual()?.nome ?? '';
+  const fundo = abrirJanela(h`
+    <h3>Lista de compras</h3>
+    <p class="dica">${nomeCond ? nomeCond + ' · ' : ''}${hoje} · ${c.itens} ${c.itens === 1 ? 'item' : 'itens'} em ${c.categorias} ${c.categorias === 1 ? 'categoria' : 'categorias'}${marcados.size ? ' (só os itens marcados)' : ''}. As quantidades são sugestões; ajuste ao comprar.</p>
+    <div class="lista-compras">${grupos.map((g) => h`<section class="grupo-lista"><h4>${g.categoria}</h4>
+      <table><thead><tr><th>Item</th><th>Comprar</th><th>Estoque</th></tr></thead><tbody>
+        ${g.itens.map((i) => h`<tr><td>${i.nome}</td><td class="num"><b>${num(i.qtd)} ${i.unidade}</b></td><td class="num">${num(i.estoque)}</td></tr>`)}</tbody></table></section>`)}</div>
+    <div class="auth-error hidden" data-erro role="alert"></div>
+    <div class="acoes no-print"><button class="btn ghost" data-fechar>Fechar</button>
+      <button class="btn ghost" data-l="csv">Baixar planilha (CSV)</button>
+      <button class="btn ghost" data-l="copiar">Copiar texto</button>
+      <button class="btn" data-l="imprimir">Imprimir ou salvar em PDF</button></div>`, { largo: true });
+  fundo.classList.add('lista-compras-fundo');
+  const erro = (m) => { const e = fundo.querySelector('[data-erro]'); e.textContent = m; e.classList.remove('hidden'); };
+  fundo.querySelector('[data-fechar]').addEventListener('click', () => fundo.remove());
+  fundo.addEventListener('keydown', (e) => { if (e.key === 'Escape') fundo.remove(); });
+  on(fundo, 'click', '[data-l]', async (_, b) => {
+    const a = b.dataset.l;
+    if (a === 'csv') {
+      const blob = new Blob([csvLista(grupos)], { type: 'text/csv;charset=utf-8' });
+      const l = document.createElement('a'); l.href = URL.createObjectURL(blob); l.download = `lista-de-compras-${agora.toISOString().slice(0, 10)}.csv`; l.click();
+      setTimeout(() => URL.revokeObjectURL(l.href), 1000);
+    } else if (a === 'copiar') {
+      try { await navigator.clipboard.writeText(textoLista(grupos, { condominio: nomeCond, data: hoje })); aviso('Lista copiada. Cole no WhatsApp ou no e-mail.', 'ok'); }
+      catch { erro('Não foi possível copiar automaticamente. Use "Imprimir" ou baixe a planilha.'); }
+    } else if (a === 'imprimir') {
+      document.body.classList.add('imprimindo-lista');
+      window.addEventListener('afterprint', () => document.body.classList.remove('imprimindo-lista'), { once: true });
+      window.print();
+    }
+  });
+  fundo.querySelector('[data-fechar]').focus();
+}
+
 async function recarregar() { await carregar(); desenhar(); }
 
 export async function abrir(el) {
@@ -86,6 +129,7 @@ export async function abrir(el) {
     try {
       const a = b.dataset.acao;
       if (a === 'nova') await abrirEditor({ aoSalvar: async () => { aba = 'compras'; await recarregar(); } });
+      else if (a === 'gerar-lista') abrirLista();
       else if (a === 'criar-selecionados') {
         const pre = necessarios().filter((i) => marcados.has(i.item_id)).map((i) => ({ item_id: i.item_id, qtd: aComprar(i) }));
         await abrirEditor({ preItens: pre, aoSalvar: async () => { marcados.clear(); aba = 'compras'; await recarregar(); } });

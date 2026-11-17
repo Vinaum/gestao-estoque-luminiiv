@@ -177,3 +177,16 @@ tr.inativo td{ color:var(--muted); }
 .link-recs:focus-visible{ outline:2px solid var(--ink); outline-offset:2px; }
 .cartao-prest .linha-acoes{ display:flex; gap:6px; flex-wrap:wrap; margin-top:4px; }
 .rec-item{ align-items:flex-start; }
+
+/* Lista de compras */
+.grupo-lista{ margin:0 0 14px; }
+.grupo-lista h4{ margin:0 0 6px; font-size:14px; font-family:'Space Grotesk',sans-serif; border-bottom:2px solid var(--border); padding-bottom:4px; }
+.lista-compras{ max-height:55vh; overflow:auto; }
+@media print{
+  body.imprimindo-lista > *:not(.lista-compras-fundo){ display:none !important; }
+  body.imprimindo-lista .lista-compras-fundo{ position:static; background:none; padding:0; display:block; }
+  body.imprimindo-lista .lista-compras-fundo .modal{ box-shadow:none; width:auto; max-height:none; overflow:visible; padding:0; }
+  body.imprimindo-lista .lista-compras{ max-height:none; overflow:visible; }
+  body.imprimindo-lista .no-print{ display:none !important; }
+  body.imprimindo-lista .grupo-lista{ break-inside:avoid; }
+}
