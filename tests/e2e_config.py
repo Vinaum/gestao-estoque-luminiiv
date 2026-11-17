@@ -64,6 +64,14 @@ def main():
             pg.fill('#x-nome','Papel toalha 2f'); pg.click('.modal button[type=submit]'); pg.wait_for_selector('.modal',state='detached')
             c=[x for x in chamadas if x[0]=='itens.update']
             ok(len(c)==1 and c[0][1]['nome']=='Papel toalha 2f' and c[0][1]['ativo'] is True and 'unidade_id' not in c[0][1],'editar envia nome e não troca a unidade')
+            pg.click('[data-acao=excluir]'); pg.wait_for_selector('.modal [data-r]')
+            pg.click('.modal [data-r="0"]'); pg.wait_for_timeout(200)
+            ok(not [x for x in chamadas if x[0]=='excluir_item'],'cancelar a exclusão não envia nada')
+            pg.click('[data-acao=excluir]'); pg.wait_for_selector('.modal [data-r]')
+            ok('Papel toalha' in pg.inner_text('.modal') and 'desmarque' in pg.inner_text('.modal'),'confirmação cita o item e sugere inativar')
+            pg.click('.modal [data-r="1"]'); pg.wait_for_selector('.modal',state='detached')
+            c=[x for x in chamadas if x[0]=='excluir_item']
+            ok(len(c)==1 and c[0][1]=={'p_item_id':I1},'confirmar exclui o item certo')
             # ---- Estoque atual
             pg.goto(f'http://localhost:{PORTA}/{os.environ.get("APP_CAMINHO", "app")}/index.html#/estoque'); pg.wait_for_selector('.panel table',timeout=8000)
             linhas=pg.locator('.panel').nth(1).locator('tbody tr').all_inner_texts()

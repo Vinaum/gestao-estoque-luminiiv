@@ -1316,6 +1316,32 @@ begin
 end $$;
 
 -- ============================================================
+-- Excluir item (só sem histórico)
+-- ============================================================
+do $$
+declare v_cat uuid; v_un uuid; v_novo uuid; v_pap uuid := tests.get('papel')::uuid; v_b uuid;
+begin
+  raise notice '--- Excluir item ---';
+  select id into v_cat from categorias limit 1; select id into v_un from unidades_medida where sigla = 'cx';
+  perform tests.login(tests.gest());
+  insert into public.itens (condominio_id, nome, categoria_id, unidade_id) values (tests.id('condA'), 'Item para excluir', v_cat, v_un) returning id into v_novo;
+  perform tests.logout();
+  perform tests.login(tests.mor());
+  perform tests.erro('X morador não exclui item', format('select public.excluir_item(%L)', v_novo), 'permissão');
+  perform tests.logout();
+  perform tests.login(tests.gest());
+  perform tests.erro('X item com histórico não pode ser excluído', format('select public.excluir_item(%L)', v_pap), 'histórico');
+  perform tests.erro('X item inexistente', 'select public.excluir_item(gen_random_uuid())', 'não encontrado');
+  perform tests.ok('X item com histórico continua existindo', exists (select 1 from public.itens where id = v_pap));
+  perform public.excluir_item(v_novo);
+  perform tests.logout();
+  perform tests.ok('X item sem histórico foi excluído', not exists (select 1 from public.itens where id = v_novo));
+  perform tests.login(tests.sind());
+  perform tests.ok('X exclusão fica na auditoria', exists (select 1 from public.auditoria where tabela = 'itens' and registro_id = v_novo::text and acao = 'delete'));
+  perform tests.logout();
+end $$;
+
+-- ============================================================
 -- Conferência final de consistência (todos os condomínios)
 -- ============================================================
 do $$

@@ -22,6 +22,7 @@ Cada arquivo pode ser repetido sem estragar nada.
 | 15 | 0015_torres_apartamentos | Torres, apartamentos e vínculo do morador (membros e convites ganham o apartamento) |
 | 16 | 0016_comunicados | Comunicados (rascunho → publicado → arquivado), leitura por morador, anexos em bucket privado |
 | 17 | 0017_prestadores | Prestadores indicados por moradores (síndico aprova), recomendações, leitura só por função |
+| 18 | 0018_excluir_item | Excluir item sem histórico (com histórico, só inativar) |
 
 `pendentes/0099_remover_legado.sql` **não deve ser rodado** sem aprovação separada: apaga o modelo antigo.
 

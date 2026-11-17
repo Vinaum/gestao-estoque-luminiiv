@@ -41,7 +41,7 @@ app/            Interface (index.html, js/, assets/)
   js/lib/       Utilitários: HTML seguro, formatação, janelas, Supabase, estado
   js/modules/   Uma pasta por tela (operacao, estoque, compras, painel, relatorios, admin…)
 vendor/         Bibliotecas fixas (supabase-js, Chart.js) + SHA256SUMS
-supabase/       Banco: migrations/ (0001–0017), tests/, pendentes/
+supabase/       Banco: migrations/ (0001–0018), tests/, pendentes/
 tests/          Testes do front e auditoria de segurança
 docs/           Plano, mapa de testes e roteiro da virada
 ```

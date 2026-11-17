@@ -29,7 +29,8 @@ function linhas() {
       <td><button class="btn pequeno" data-acao="salvar" data-id="${i.item_id}" disabled>Salvar</button></td>
       <td><div class="linha-acoes">
         <button class="icon-btn" data-acao="editar" data-id="${i.item_id}">Editar</button>
-        <button class="icon-btn" data-acao="historico" data-id="${i.item_id}">Histórico</button></div></td></tr>`)}</tbody></table></div>`;
+        <button class="icon-btn" data-acao="historico" data-id="${i.item_id}">Histórico</button>
+        <button class="icon-btn" data-acao="excluir" data-id="${i.item_id}">Excluir</button></div></td></tr>`)}</tbody></table></div>`;
 }
 
 function desenhar() {
@@ -81,6 +82,14 @@ async function historico(id) {
     : h`<div class="empty">Nenhuma alteração de mínimo ou ideal registrada.</div>`);
 }
 
+async function excluir(id) {
+  const it = item(id);
+  if (!(await confirmar(`Excluir “${it.nome}”?`, 'O item some da configuração. Só é possível se ele nunca teve compra ou movimentação; caso contrário, use Editar e desmarque “Item ativo”.', { rotulo: 'Excluir', perigo: true }))) return;
+  await rpc('excluir_item', { p_item_id: id });
+  aviso('Item excluído.', 'ok');
+  await carregar(); render(raizPagina.querySelector('#tab'), linhas());
+}
+
 async function editar(id) {
   const it = item(id);
   const [cats, unis] = await Promise.all([db.from('categorias').select('id,nome').order('nome'), db.from('unidades_medida').select('id,sigla,nome').order('sigla')]);
@@ -123,6 +132,7 @@ export async function abrir(el) {
       if (a === 'salvar') await salvar(id, b);
       else if (a === 'editar') await editar(id);
       else if (a === 'historico') await historico(id);
+      else if (a === 'excluir') await excluir(id);
     } catch (e) { aviso(mensagemErro(e), 'erro'); }
   });
 }
