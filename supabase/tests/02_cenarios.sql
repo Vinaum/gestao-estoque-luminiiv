@@ -912,6 +912,218 @@ begin
 end $$;
 
 -- ============================================================
+-- Comunicados
+-- ============================================================
+do $$
+declare
+  v_a uuid := tests.id('condA'); v_b uuid := tests.id('condB');
+  v_t1 uuid; v_t2 uuid; v_tb uuid; v_ap_t1 uuid; v_ap_t2 uuid;
+  c1 uuid; c2 uuid; c3 uuid; c4 uuid; v_pub timestamptz; v_ed timestamptz; r jsonb; n int;
+  v_mor uuid := tests.mor(); v_e3 uuid := '00000000-0000-0000-0000-0000000000e3'; v_e4 uuid := '00000000-0000-0000-0000-0000000000e4';
+begin
+  raise notice '--- Comunicados ---';
+  -- preparação: morador na Torre 2, outro na Torre 1, outro sem apartamento
+  select id into v_t1 from public.torres where condominio_id = v_a and nome = 'Torre 1';
+  select id into v_t2 from public.torres where condominio_id = v_a and nome = 'Torre 2';
+  select id into v_tb from public.torres where condominio_id = v_b limit 1;
+  select id into v_ap_t2 from public.apartamentos where torre_id = v_t2 and numero = '32';
+  select id into v_ap_t1 from public.apartamentos where torre_id = v_t1 and numero = '13';
+  update public.membros set apartamento_id = v_ap_t2 where condominio_id = v_a and user_id = v_mor;
+  update public.membros set apartamento_id = v_ap_t1 where condominio_id = v_a and user_id = v_e3;
+  insert into auth.users (id, email, email_confirmed_at) values (v_e4, 'sem.apto@teste.com', now());
+  insert into public.membros (condominio_id, user_id, papel) values (v_a, v_e4, 'morador');
+
+  -- rascunho: só a equipe vê
+  perform tests.login(tests.sind());
+  c1 := public.salvar_comunicado(v_a, null, jsonb_build_object('titulo', 'Corte de água', 'corpo', 'Dia 20, das 8h às 12h.', 'tipo', 'manutencao'));
+  perform tests.texto('C comunicado nasce como rascunho', (select status from public.comunicados where id = c1), 'rascunho');
+  perform tests.logout();
+  perform tests.login(v_mor);
+  perform tests.igual('C morador não vê rascunho', (select count(*) from public.comunicados where id = c1), 0);
+  perform tests.ok('C nem consegue marcar rascunho como lido', not public.marcar_comunicado_lido(c1));
+  perform tests.logout();
+  perform tests.login(tests.gest());
+  perform tests.igual('C gestor vê o rascunho', (select count(*) from public.comunicados where id = c1), 1);
+  perform public.publicar_comunicado(c1);
+  perform tests.texto('C gestor publica', (select status from public.comunicados where id = c1), 'publicado');
+  perform tests.erro('C publicar de novo dá erro claro', format('select public.publicar_comunicado(%L)', c1), 'já está publicado');
+  perform tests.logout();
+  select publicado_em into v_pub from public.comunicados where id = c1;
+
+  -- publicado, para todo o condomínio: todos os moradores veem
+  perform tests.login(v_mor);
+  perform tests.igual('C morador vê o publicado', (select count(*) from public.comunicados where id = c1), 1);
+  perform tests.ok('C marcar como lido registra', public.marcar_comunicado_lido(c1));
+  perform tests.ok('C marcar de novo é aceito (sem duplicar)', public.marcar_comunicado_lido(c1));
+  perform tests.igual('C uma única leitura por pessoa', (select count(*) from public.comunicado_leituras where comunicado_id = c1 and user_id = v_mor), 1);
+  perform tests.logout();
+  perform tests.login(v_e4);
+  perform tests.igual('C morador sem apartamento vê comunicado de todo o condomínio', (select count(*) from public.comunicados where id = c1), 1);
+  perform tests.logout();
+
+  -- destino por torre
+  perform tests.login(tests.sind());
+  c2 := public.salvar_comunicado(v_a, null, jsonb_build_object('titulo', 'Obra na Torre 2', 'corpo', 'Barulho de 8h às 17h.', 'tipo', 'obra', 'torre_id', v_t2, 'fixado', true));
+  perform public.publicar_comunicado(c2);
+  perform tests.logout();
+  perform tests.login(v_mor);
+  perform tests.igual('C morador da Torre 2 vê o comunicado da Torre 2', (select count(*) from public.comunicados where id = c2), 1);
+  perform tests.logout();
+  perform tests.login(v_e3);
+  perform tests.igual('C morador da Torre 1 não vê o da Torre 2', (select count(*) from public.comunicados where id = c2), 0);
+  perform tests.ok('C e não consegue marcá-lo como lido', not public.marcar_comunicado_lido(c2));
+  perform tests.logout();
+  perform tests.login(v_e4);
+  perform tests.igual('C morador sem apartamento não vê comunicado de torre', (select count(*) from public.comunicados where id = c2), 0);
+  perform tests.logout();
+  perform tests.login(tests.gest());
+  perform tests.igual('C a equipe vê comunicados de qualquer torre', (select count(*) from public.comunicados where id = c2), 1);
+  perform tests.logout();
+  perform tests.igual('C leitura do morador de fora da torre não foi gravada', (select count(*) from public.comunicado_leituras where comunicado_id = c2 and user_id = v_e3), 0);
+
+  -- validade
+  perform tests.login(tests.sind());
+  perform tests.erro('C data de validade no passado é recusada', format('select public.salvar_comunicado(%L, null, %L::jsonb)', v_a, '{"titulo":"x","corpo":"y","expira_em":"2020-01-01T00:00:00Z"}'), 'já passou');
+  c3 := public.salvar_comunicado(v_a, null, jsonb_build_object('titulo', 'Reunião', 'corpo', 'Sábado às 10h.', 'tipo', 'assembleia', 'expira_em', (now() + interval '30 days')::text));
+  perform public.publicar_comunicado(c3);
+  perform tests.logout();
+  perform tests.login(v_mor);
+  perform tests.igual('C dentro da validade o morador vê', (select count(*) from public.comunicados where id = c3), 1);
+  perform tests.logout();
+  update public.comunicados set expira_em = now() - interval '1 minute' where id = c3;
+  perform tests.login(v_mor);
+  perform tests.igual('C vencido some para o morador', (select count(*) from public.comunicados where id = c3), 0);
+  perform tests.ok('C e não registra leitura', not public.marcar_comunicado_lido(c3));
+  perform tests.logout();
+  perform tests.login(tests.sind());
+  perform tests.igual('C vencido continua visível para a equipe', (select count(*) from public.comunicados where id = c3), 1);
+  perform tests.logout();
+
+  -- edição e arquivamento
+  perform tests.login(tests.sind());
+  perform public.salvar_comunicado(v_a, c1, jsonb_build_object('titulo', 'Corte de água (adiado)', 'corpo', 'Agora dia 22.', 'tipo', 'manutencao', 'fixado', true));
+  select editado_em into v_ed from public.comunicados where id = c1;
+  perform tests.ok('C editar título/texto de publicado marca "editado em"', v_ed is not null);
+  perform tests.ok('C a data de publicação não muda ao editar', (select publicado_em from public.comunicados where id = c1) = v_pub);
+  perform public.salvar_comunicado(v_a, c1, jsonb_build_object('titulo', 'Corte de água (adiado)', 'corpo', 'Agora dia 22.', 'tipo', 'manutencao', 'fixado', false));
+  perform tests.ok('C mexer só em "fixar" não conta como edição', (select editado_em from public.comunicados where id = c1) = v_ed);
+  perform public.arquivar_comunicado(c1);
+  perform tests.texto('C síndico arquiva', (select status from public.comunicados where id = c1), 'arquivado');
+  perform tests.erro('C arquivar de novo dá erro claro', format('select public.arquivar_comunicado(%L)', c1), 'já está arquivado');
+  perform tests.erro('C arquivado não se edita', format('select public.salvar_comunicado(%L, %L, %L::jsonb)', v_a, c1, '{"titulo":"x","corpo":"y"}'), 'arquivado');
+  perform tests.logout();
+  perform tests.login(v_mor);
+  perform tests.igual('C arquivado some para o morador', (select count(*) from public.comunicados where id = c1), 0);
+  perform tests.logout();
+  perform tests.login(tests.gest());
+  perform public.publicar_comunicado(c1);
+  perform tests.ok('C republicar mantém a data de publicação original', (select publicado_em from public.comunicados where id = c1) = v_pub);
+  perform tests.logout();
+  perform tests.login(v_mor);
+  perform tests.igual('C e volta a aparecer', (select count(*) from public.comunicados where id = c1), 1);
+  perform tests.logout();
+
+  -- validações
+  perform tests.login(tests.sind());
+  perform tests.erro('C título vazio', format('select public.salvar_comunicado(%L, null, %L::jsonb)', v_a, '{"titulo":"  ","corpo":"y"}'), 'título');
+  perform tests.erro('C título com mais de 120', format('select public.salvar_comunicado(%L, null, %L::jsonb)', v_a, jsonb_build_object('titulo', repeat('a', 121), 'corpo', 'y')), 'título');
+  perform tests.erro('C texto vazio', format('select public.salvar_comunicado(%L, null, %L::jsonb)', v_a, '{"titulo":"x","corpo":""}'), 'texto');
+  perform tests.erro('C texto com mais de 5000', format('select public.salvar_comunicado(%L, null, %L::jsonb)', v_a, jsonb_build_object('titulo', 'x', 'corpo', repeat('a', 5001))), 'texto');
+  perform tests.erro('C tipo inválido', format('select public.salvar_comunicado(%L, null, %L::jsonb)', v_a, '{"titulo":"x","corpo":"y","tipo":"propaganda"}'), 'Tipo inválido');
+  perform tests.erro('C torre de outro condomínio', format('select public.salvar_comunicado(%L, null, %L::jsonb)', v_a, jsonb_build_object('titulo', 'x', 'corpo', 'y', 'torre_id', v_tb)), 'Torre não encontrada');
+  perform tests.erro('C data ilegível', format('select public.salvar_comunicado(%L, null, %L::jsonb)', v_a, '{"titulo":"x","corpo":"y","expira_em":"abc"}'), 'Dados inválidos');
+  perform tests.erro('C identificador ilegível', format('select public.salvar_comunicado(%L, null, %L::jsonb)', v_a, '{"titulo":"x","corpo":"y","torre_id":"abc"}'), 'Dados inválidos');
+  c4 := public.salvar_comunicado(v_a, null, jsonb_build_object('titulo', '<script>alert(1)</script>', 'corpo', '<img src=x onerror=alert(1)> "aspas" & apostrofo'));
+  perform tests.texto('C texto malicioso é guardado como texto, sem alteração', (select titulo from public.comunicados where id = c4), '<script>alert(1)</script>');
+  perform tests.logout();
+
+  -- quem não pode
+  perform tests.login(v_mor);
+  perform tests.erro('C morador não cria', format('select public.salvar_comunicado(%L, null, %L::jsonb)', v_a, '{"titulo":"x","corpo":"y"}'), 'Sem permissão');
+  perform tests.erro('C morador não publica', format('select public.publicar_comunicado(%L)', c4), 'Sem permissão');
+  perform tests.erro('C morador não arquiva', format('select public.arquivar_comunicado(%L)', c1), 'Sem permissão');
+  perform tests.erro('C morador não anexa', format('select public.definir_anexo_comunicado(%L, null, null)', c1), 'Sem permissão');
+  perform tests.erro('C morador não vê quem leu', format('select public.leituras_comunicado(%L)', c1), 'Sem permissão');
+  perform tests.erro('C morador não escreve direto', format('insert into public.comunicados (condominio_id, titulo, corpo) values (%L, ''x'', ''y'')', v_a), 'permission denied');
+  perform tests.erro('C morador não altera direto', format('update public.comunicados set titulo = ''x'' where id = %L', c1), 'permission denied');
+  perform tests.erro('C morador não grava leitura direto', format('insert into public.comunicado_leituras (comunicado_id, condominio_id, user_id) values (%L, %L, %L)', c1, v_a, v_e4), 'permission denied');
+  perform tests.igual('C morador só enxerga as próprias leituras', (select count(*) from public.comunicado_leituras), (select count(*) from public.comunicado_leituras where user_id = v_mor));
+  perform tests.logout();
+
+  -- isolamento entre condomínios
+  perform tests.login('00000000-0000-0000-0000-0000000000b2');
+  perform tests.igual('C síndico do B não vê comunicados do A', (select count(*) from public.comunicados where condominio_id = v_a), 0);
+  perform tests.erro('C síndico do B não cria no A', format('select public.salvar_comunicado(%L, null, %L::jsonb)', v_a, '{"titulo":"x","corpo":"y"}'), 'Sem permissão');
+  perform tests.erro('C síndico do B não publica do A', format('select public.publicar_comunicado(%L)', c4), 'Sem permissão');
+  perform tests.erro('C síndico do B não edita por outro condomínio', format('select public.salvar_comunicado(%L, %L, %L::jsonb)', v_b, c4, '{"titulo":"x","corpo":"y"}'), 'não encontrado');
+  perform tests.erro('C síndico do B não vê leituras do A', format('select public.leituras_comunicado(%L)', c1), 'Sem permissão');
+  perform tests.ok('C síndico do B não marca leitura do A', not public.marcar_comunicado_lido(c1));
+  perform tests.logout();
+
+  -- leituras
+  perform tests.login(v_e3);
+  perform tests.ok('C morador da Torre 1 lê o comunicado geral', public.marcar_comunicado_lido(c1));
+  perform tests.logout();
+  perform tests.login(tests.sind());
+  r := public.leituras_comunicado(c1);
+  perform tests.igual('C total = pessoas ativas do condomínio', (r ->> 'total')::int, (select count(*) from public.membros where condominio_id = v_a and ativo));
+  perform tests.igual('C lidos = leituras gravadas', (r ->> 'lidos')::int, (select count(*) from public.comunicado_leituras where comunicado_id = c1));
+  perform tests.igual('C pendentes = total − lidos', jsonb_array_length(r -> 'pendentes'), (r ->> 'total')::int - (r ->> 'lidos')::int);
+  r := public.leituras_comunicado(c2);
+  perform tests.igual('C comunicado de torre: público-alvo é só a torre',
+    (r ->> 'total')::int,
+    (select count(*) from public.membros m join public.apartamentos a on a.id = m.apartamento_id where m.condominio_id = v_a and m.ativo and a.torre_id = v_t2));
+  perform tests.ok('C pendentes trazem nome e apartamento', (r -> 'pendentes' -> 0) ? 'nome' and (r -> 'pendentes' -> 0) ? 'apartamento_id');
+  perform tests.logout();
+  perform tests.login(tests.gest());
+  perform tests.ok('C gestor também vê quem leu', (public.leituras_comunicado(c1) ->> 'total')::int > 0);
+  perform tests.ok('C gestor vê as leituras de todos', (select count(*) from public.comunicado_leituras where comunicado_id = c1) >= 2);
+  perform tests.logout();
+
+  -- anexos
+  perform tests.login(tests.gest());
+  perform public.definir_anexo_comunicado(c1, v_a || '/' || c1 || '/ata.pdf', 'Ata da assembleia.pdf');
+  perform tests.texto('C anexo registrado', (select anexo_nome from public.comunicados where id = c1), 'Ata da assembleia.pdf');
+  perform tests.erro('C anexo de outro condomínio', format('select public.definir_anexo_comunicado(%L, %L, ''x.pdf'')', c1, v_b || '/' || c1 || '/x.pdf'), 'não pertence');
+  perform tests.erro('C anexo de outro comunicado', format('select public.definir_anexo_comunicado(%L, %L, ''x.pdf'')', c1, v_a || '/' || c2 || '/x.pdf'), 'não pertence');
+  perform tests.erro('C anexo sem nome de arquivo no caminho', format('select public.definir_anexo_comunicado(%L, %L, ''x.pdf'')', c1, v_a || '/' || c1 || '/'), 'não pertence');
+  perform tests.erro('C anexo sem nome informado', format('select public.definir_anexo_comunicado(%L, %L, ''  '')', c1, v_a || '/' || c1 || '/y.pdf'), 'Nome do arquivo');
+  insert into storage.objects (bucket_id, name) values ('comunicados', v_a || '/' || c1 || '/ata.pdf');
+  insert into storage.objects (bucket_id, name) values ('comunicados', v_a || '/' || c2 || '/planta.pdf');
+  perform tests.erro('C gestor não envia anexo para outro condomínio', format('insert into storage.objects (bucket_id, name) values (''comunicados'', %L)', v_b || '/' || c1 || '/x.pdf'), 'row-level security');
+  perform tests.igual('C gestor lê os anexos', (select count(*) from storage.objects where bucket_id = 'comunicados'), 2);
+  perform tests.logout();
+  perform tests.login(v_mor);
+  perform tests.igual('C morador da Torre 2 lê os dois anexos', (select count(*) from storage.objects where bucket_id = 'comunicados'), 2);
+  perform tests.erro('C morador não envia anexo', format('insert into storage.objects (bucket_id, name) values (''comunicados'', %L)', v_a || '/' || c1 || '/z.pdf'), 'row-level security');
+  delete from storage.objects where bucket_id = 'comunicados';
+  perform tests.igual('C morador não apaga anexo', (select count(*) from storage.objects where bucket_id = 'comunicados'), 2);
+  perform tests.logout();
+  perform tests.login(v_e3);
+  perform tests.igual('C morador da Torre 1 só lê o anexo do que vê', (select count(*) from storage.objects where bucket_id = 'comunicados'), 1);
+  perform tests.logout();
+  perform tests.login(v_e4);
+  perform tests.igual('C morador sem apartamento só lê o anexo do comunicado geral', (select count(*) from storage.objects where bucket_id = 'comunicados'), 1);
+  perform tests.logout();
+  perform tests.login('00000000-0000-0000-0000-0000000000b2');
+  perform tests.igual('C síndico do B não lê anexos do A', (select count(*) from storage.objects where bucket_id = 'comunicados'), 0);
+  perform tests.logout();
+  perform tests.login(tests.gest());
+  perform public.definir_anexo_comunicado(c1, null, null);
+  perform tests.ok('C anexo removido do comunicado', (select anexo_path is null and anexo_nome is null from public.comunicados where id = c1));
+  delete from storage.objects where bucket_id = 'comunicados' and name = v_a || '/' || c1 || '/ata.pdf';
+  perform tests.igual('C gestor apaga arquivo do anexo', (select count(*) from storage.objects where bucket_id = 'comunicados'), 1);
+  perform tests.logout();
+  delete from storage.objects where bucket_id = 'comunicados';
+
+  -- auditoria
+  perform tests.login(tests.sind());
+  select count(*) into n from public.auditoria where tabela = 'comunicados' and condominio_id = v_a;
+  perform tests.ok('C criação, edição, publicação e arquivamento ficam na auditoria', n >= 10);
+  perform tests.logout();
+end $$;
+
+-- ============================================================
 -- Conferência final de consistência (todos os condomínios)
 -- ============================================================
 do $$

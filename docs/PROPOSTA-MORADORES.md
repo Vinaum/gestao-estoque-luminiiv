@@ -1,6 +1,6 @@
 # Proposta — Área dos moradores (comunicados e indicação de prestadores)
 
-Status: **etapa 6a (torres e apartamentos) construída; 6b a 6d aguardam validação.**
+Status: **etapas 6a (torres e apartamentos) e 6b (comunicados) construídas; 6c e 6d aguardam validação.**
 Decisões já tomadas pelo síndico: comunicados publicados por síndico **e** gestor; morador pode indicar prestador, **síndico aprova**; indicação mostra **quem indicou e a unidade** (5 torres); pedido de acesso pelo próprio morador fica para **depois**.
 
 ## 1. O que o morador passa a ter

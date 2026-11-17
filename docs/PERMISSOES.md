@@ -19,6 +19,8 @@ Decisões do síndico (17/11/2026). A tabela abaixo é o que o sistema faz hoje;
 | Torres e apartamentos: cadastrar, gerar, desativar | ✓ | ✓ | – | – |
 | Ver torres e apartamentos | ✓ | ✓ | ✓ | ✓ |
 | Ligar pessoa ou convite a um apartamento | ✓ | ✓ | – | – |
+| Ler comunicados publicados (os do seu público) | ✓ | ✓ | ✓ | ✓ |
+| Criar, editar, publicar, arquivar comunicado; ver quem leu | ✓ | ✓ | ✓ | – |
 | Criar condomínio, definir síndico, catálogos | ✓ | – | – | – |
 
 ## Em aberto

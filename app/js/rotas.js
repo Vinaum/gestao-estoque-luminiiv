@@ -13,11 +13,12 @@ export const ROTAS = [
   { id: 'fornecedores',   titulo: 'Fornecedores',           papeis: EQUIPE,  grupo: 'Compras', modulo: './modules/fornecedores/fornecedores.js' },
   { id: 'consumo',        titulo: 'Consumo',                papeis: EQUIPE,  grupo: 'Análises', modulo: './modules/relatorios/consumo.js' },
   { id: 'gastos',         titulo: 'Relatórios de gastos',   papeis: EQUIPE, grupo: 'Análises', modulo: './modules/relatorios/gastos.js' },
+  { id: 'comunicados',     titulo: 'Comunicados',            papeis: ['gestor', 'sindico', 'superadmin', 'morador'], grupo: 'Comunidade', modulo: './modules/comunicados/comunicados.js' },
   { id: 'usuarios',       titulo: 'Usuários',               papeis: SINDICO, grupo: 'Condomínio', modulo: './modules/usuarios/usuarios.js' },
   { id: 'torres',          titulo: 'Torres e apartamentos',  papeis: SINDICO, grupo: 'Condomínio', modulo: './modules/torres/torres.js' },
   { id: 'admin',          titulo: 'Administração',          papeis: ['superadmin'], grupo: 'Sistema', modulo: './modules/admin/admin.js' },
   { id: 'inicio',         titulo: 'Início',                 papeis: ['morador'], grupo: '', modulo: './modules/boasvindas/boasvindas.js' },
 ];
 
-export const PADRAO = { superadmin: 'admin', sindico: 'painel', gestor: 'operacao', morador: 'inicio' };
+export const PADRAO = { superadmin: 'admin', sindico: 'painel', gestor: 'operacao', morador: 'comunicados' };
 export const rotasDoPapel = (papel) => ROTAS.filter((r) => r.papeis.includes(papel));
