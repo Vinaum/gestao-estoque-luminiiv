@@ -132,3 +132,11 @@ tr.inativo td{ color:var(--muted); }
 .atalhos{ display:flex; gap:10px; flex-wrap:wrap; }
 .atalhos a.btn{ text-decoration:none; display:inline-block; }
 @media (max-width:780px){ .cards.oito{ grid-template-columns:repeat(2,1fr); } .grade2{ grid-template-columns:1fr; } }
+
+/* Torres e apartamentos */
+.chips-apto{ display:flex; flex-wrap:wrap; gap:6px; }
+.chip-apto{ all:unset; cursor:pointer; font-family:'IBM Plex Mono',monospace; font-size:12.5px; padding:4px 10px; border:1px solid var(--border); border-radius:var(--radius); background:#fdfcf9; color:var(--ink); }
+.chip-apto:hover{ border-color:var(--ink); }
+.chip-apto:focus-visible{ outline:2px solid var(--ink); outline-offset:2px; }
+.chip-apto.inativo{ text-decoration:line-through; opacity:.5; }
+.panel.inativo h3{ color:var(--muted); }

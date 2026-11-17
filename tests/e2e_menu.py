@@ -16,9 +16,9 @@ CASOS = {
   'gestor':   dict(uid='aaaaaaaa-0000-0000-0000-000000000003', super=False, conds=[(COND_A,'Cond A')], vinc={COND_A:'gestor'},
                    menu=['Painel','Operação diária','Estoque atual','Configuração de estoque','Central de compras','Fornecedores','Consumo','Relatórios de gastos'], inicial='#/operacao'),
   'sindico':  dict(uid='aaaaaaaa-0000-0000-0000-000000000002', super=False, conds=[(COND_A,'Cond A')], vinc={COND_A:'sindico'},
-                   menu=['Painel','Aprovações','Operação diária','Estoque atual','Configuração de estoque','Central de compras','Fornecedores','Consumo','Relatórios de gastos','Usuários'], inicial='#/painel'),
+                   menu=['Painel','Aprovações','Operação diária','Estoque atual','Configuração de estoque','Central de compras','Fornecedores','Consumo','Relatórios de gastos','Usuários','Torres e apartamentos'], inicial='#/painel'),
   'superadmin': dict(uid='aaaaaaaa-0000-0000-0000-000000000001', super=True, conds=[(COND_A,'Cond A'),(COND_B,'Cond B')], vinc={},
-                   menu=['Painel','Aprovações','Operação diária','Estoque atual','Configuração de estoque','Central de compras','Fornecedores','Consumo','Relatórios de gastos','Usuários','Administração'], inicial='#/admin'),
+                   menu=['Painel','Aprovações','Operação diária','Estoque atual','Configuração de estoque','Central de compras','Fornecedores','Consumo','Relatórios de gastos','Usuários','Torres e apartamentos','Administração'], inicial='#/admin'),
   'morador':  dict(uid='aaaaaaaa-0000-0000-0000-000000000004', super=False, conds=[(COND_A,'Cond A')], vinc={COND_A:'morador'},
                    menu=['Início'], inicial='#/inicio'),
 }
@@ -70,6 +70,9 @@ def main():
                     pg.goto(f'http://localhost:{PORTA}/{os.environ.get("APP_CAMINHO", "app")}/index.html#/admin'); pg.wait_for_timeout(400)
                     h = pg.evaluate('location.hash')
                     print(('OK   ' if h == '#/operacao' else 'FALHOU'), 'gestor não entra em #/admin ->', h); falhou |= h != '#/operacao'
+                    pg.goto(f'http://localhost:{PORTA}/{os.environ.get("APP_CAMINHO", "app")}/index.html#/torres'); pg.wait_for_timeout(400)
+                    h = pg.evaluate('location.hash')
+                    print(('OK   ' if h == '#/operacao' else 'FALHOU'), 'gestor não entra em #/torres ->', h); falhou |= h != '#/operacao'
                 nav.close()
             # sem vínculo
             c = dict(uid='aaaaaaaa-0000-0000-0000-000000000009', super=False, conds=[], vinc={})

@@ -6,12 +6,16 @@ PORTA = 8782
 CA = '11111111-1111-1111-1111-111111111111'; CB = '22222222-2222-2222-2222-222222222222'
 SUP = 'aaaaaaaa-0000-0000-0000-000000000001'; SIN = 'aaaaaaaa-0000-0000-0000-000000000002'; GES = 'aaaaaaaa-0000-0000-0000-000000000003'; MOR = 'aaaaaaaa-0000-0000-0000-000000000004'
 XSS = '<img src=x onerror=alert(1)>'
+T1 = 'bbbbbbbb-0000-0000-0000-000000000001'; T2 = 'bbbbbbbb-0000-0000-0000-000000000002'
+AP11 = 'cccccccc-0000-0000-0000-000000000011'; AP12 = 'cccccccc-0000-0000-0000-000000000012'; AP21 = 'cccccccc-0000-0000-0000-000000000021'
 NOMES = {SUP: 'Super', SIN: 'Sindico', GES: 'Gestora', MOR: 'Morador'}
 def dados_comuns(papel_da_sessao, superadmin):
     contagem = {'perfil': 0}
     def t(u, q, m, corpo, acc):
         if m == 'RPC:verificar_consistencia': return t.diag
         if m.startswith('RPC'): return {}
+        if '/torres' in u: return [{'id': T2, 'nome': 'Torre 2', 'ativo': True}, {'id': T1, 'nome': 'Torre 1', 'ativo': True}]
+        if '/apartamentos' in u: return [{'id': AP21, 'torre_id': T2, 'numero': '21', 'ativo': True}, {'id': AP12, 'torre_id': T1, 'numero': '12', 'ativo': True}, {'id': AP11, 'torre_id': T1, 'numero': '11', 'ativo': True}]
         if '/profiles' in u and 'id=eq.' in u and 'select=id%2Cnome%2Csuperadmin' in u: contagem['perfil'] += 1; return [{'id': SUP if superadmin else SIN, 'nome': 'Eu', 'superadmin': superadmin}]
         if '/profiles' in u: return [{'id': k, 'nome': v, 'superadmin': k == SUP} for k, v in NOMES.items()]
         if '/condominios' in u: return [{'id': CA, 'nome': XSS, 'ativo': True, 'cnpj': '11222333000181'}, {'id': CB, 'nome': 'Cond B', 'ativo': True, 'cnpj': None}]
@@ -74,30 +78,47 @@ def main():
             ok(pg.locator('[data-papel-de="%s"]' % SIN).count() == 0, 'síndico não tem seletor para o próprio papel')
             sel = pg.locator('[data-papel-de="%s"]' % GES)
             ok(sel.locator('option').all_inner_texts() == ['Gestor', 'Morador'], 'síndico só pode escolher Gestor ou Morador')
-            sel.select_option('morador'); pg.wait_for_selector('.toast.ok')
+            sel.select_option('morador'); esperar_chamada(pg, ch, 'alterar_papel_membro', 1)
             c = [x for x in ch if x[0] == 'alterar_papel_membro']
             ok(len(c) == 1 and c[0][1] == {'p_condominio_id': CA, 'p_user_id': GES, 'p_papel': 'morador'}, 'alterar papel envia a pessoa certa')
             pg.click('[data-acao=convidar]'); pg.wait_for_selector('.modal form'); pg.fill('#c-email', 'semarroba'); pg.click('.modal button[type=submit]')
             ok('e-mail' in pg.inner_text('.modal [data-erro]').lower(), 'e-mail inválido recusado')
             ok(pg.locator('#c-papel option').all_inner_texts() == ['Gestor', 'Morador'], 'convite: síndico não oferece papel Síndico')
-            pg.fill('#c-email', 'Nova@X.com'); pg.select_option('#c-papel', 'gestor'); pg.click('.modal button[type=submit]'); pg.wait_for_selector('.modal', state='detached')
+            ok(pg.locator('#c-apto option').all_inner_texts() == ['Sem apartamento por enquanto', 'Torre 1 · Apto 11', 'Torre 1 · Apto 12', 'Torre 2 · Apto 21'], 'convite: apartamentos agrupados por torre e em ordem natural')
+            pg.fill('#c-email', 'Nova@X.com'); pg.select_option('#c-papel', 'gestor'); pg.select_option('#c-apto', AP11); pg.click('.modal button[type=submit]'); pg.wait_for_selector('.modal', state='detached')
             c = [x for x in ch if x[0] == 'convidar_membro']
-            ok(len(c) == 1 and c[0][1] == {'p_condominio_id': CA, 'p_email': 'nova@x.com', 'p_papel': 'gestor'}, 'convite envia e-mail em minúsculas e papel')
-            pg.click('[data-acao=desativar][data-id="%s"]' % MOR); pg.wait_for_selector('.modal [data-r="1"]'); pg.click('.modal [data-r="1"]'); pg.wait_for_selector('.toast.ok')
+            ok(len(c) == 1 and c[0][1] == {'p_condominio_id': CA, 'p_email': 'nova@x.com', 'p_papel': 'gestor', 'p_apartamento_id': AP11}, 'convite envia e-mail em minúsculas, papel e apartamento')
+            pg.click('[data-acao=convidar]'); pg.wait_for_selector('.modal form'); pg.fill('#c-email', 'sem.apto@x.com'); pg.click('.modal button[type=submit]'); pg.wait_for_selector('.modal', state='detached')
+            c = [x for x in ch if x[0] == 'convidar_membro']
+            ok(len(c) == 2 and c[1][1]['p_apartamento_id'] is None, 'convite sem apartamento envia nulo')
+            pg.click('[data-acao=desativar][data-id="%s"]' % MOR); pg.wait_for_selector('.modal [data-r="1"]'); pg.click('.modal [data-r="1"]'); esperar_chamada(pg, ch, 'desativar_membro', 1)
             c = [x for x in ch if x[0] == 'desativar_membro']
             ok(len(c) == 1 and c[0][1]['p_ativo'] is False and c[0][1]['p_user_id'] == MOR, 'desativar pede confirmação e envia p_ativo falso')
             ok('novo@x.com' in pg.inner_text('#pagina'), 'convites pendentes listados')
+            sa = pg.locator('[data-apto-de="%s"]' % MOR)
+            ok(sa.count() == 1 and pg.locator('[data-apto-de="%s"]' % SIN).count() == 1, 'Usuários: cada pessoa tem seletor de apartamento')
+            sa.select_option(AP11); esperar_chamada(pg, ch, 'definir_apartamento_membro', 1)
+            c = [x for x in ch if x[0] == 'definir_apartamento_membro']
+            ok(len(c) == 1 and c[0][1] == {'p_condominio_id': CA, 'p_user_id': MOR, 'p_apartamento_id': AP11}, 'ligar morador ao apartamento envia a pessoa e o apartamento certos')
+            sa.select_option('')
+            esperar_chamada(pg, ch, 'definir_apartamento_membro', 2)
+            c = [x for x in ch if x[0] == 'definir_apartamento_membro']
+            ok(len(c) == 2 and c[1][1]['p_apartamento_id'] is None, 'tirar o apartamento envia nulo')
+            sca = pg.locator('[data-convite-apto="c1"]'); sca.select_option(AP12); esperar_chamada(pg, ch, 'definir_apartamento_convite', 1)
+            c = [x for x in ch if x[0] == 'definir_apartamento_convite']
+            ok(len(c) == 1 and c[0][1] == {'p_convite_id': 'c1', 'p_apartamento_id': AP12}, 'trocar o apartamento de um convite pendente')
+            ok(pg.locator('[data-convite-apto="c2"]').count() == 0, 'convite de síndico: sem seletor de apartamento para o síndico')
             sc = pg.locator('[data-convite-papel="c1"]')
             ok(sc.locator('option').all_inner_texts() == ['Gestor', 'Morador'] and sc.input_value() == 'morador', 'convite: síndico escolhe só Gestor ou Morador')
             ok(pg.locator('[data-convite-papel="c2"]').count() == 0 and pg.locator('[data-acao=cancelar-convite][data-id="c2"]').count() == 0, 'convite de síndico: sem controles para o síndico')
-            sc.select_option('gestor'); pg.wait_for_selector('.toast.ok')
+            sc.select_option('gestor'); esperar_chamada(pg, ch, 'alterar_convite_papel', 1)
             c = [x for x in ch if x[0] == 'alterar_convite_papel']
             ok(len(c) == 1 and c[0][1] == {'p_convite_id': 'c1', 'p_papel': 'gestor'}, 'alterar papel do convite envia o convite certo')
             pg.click('[data-acao=cancelar-convite][data-id="c1"]'); pg.wait_for_selector('.modal [data-r="0"]'); pg.click('.modal [data-r="0"]')
             ok(not [x for x in ch if x[0] == 'cancelar_convite'], 'voltar na confirmação não cancela o convite')
             pg.click('[data-acao=cancelar-convite][data-id="c1"]'); pg.wait_for_selector('.modal [data-r="1"]')
             ok('novo@x.com' in pg.inner_text('.modal'), 'confirmação mostra o e-mail do convite')
-            pg.click('.modal [data-r="1"]'); pg.wait_for_selector('.toast.ok')
+            pg.click('.modal [data-r="1"]'); esperar_chamada(pg, ch, 'cancelar_convite', 1)
             c = [x for x in ch if x[0] == 'cancelar_convite']
             ok(len(c) == 1 and c[0][1] == {'p_convite_id': 'c1'}, 'cancelar convite envia o convite certo')
             ok(not erros, 'usuários sem erros de script: %s' % erros); nav.close()

@@ -766,6 +766,152 @@ begin
 end $$;
 
 -- ============================================================
+-- Torres e apartamentos
+-- ============================================================
+do $$
+declare
+  v_a uuid := tests.id('condA'); v_b uuid := tests.id('condB');
+  v_t1 uuid; v_t2 uuid; v_t3 uuid; v_tb uuid; v_ap uuid; v_ap2 uuid; v_ap51 uuid; v_apb uuid; v_cv uuid; n int;
+begin
+  raise notice '--- Torres e apartamentos ---';
+  perform tests.login(tests.sind());
+  perform tests.igual('T criar 5 torres em lote', public.criar_torres_lote(v_a, 5), 5);
+  perform tests.igual('T repetir o lote não duplica', public.criar_torres_lote(v_a, 5), 0);
+  perform tests.igual('T condomínio A tem 5 torres', (select count(*) from public.torres where condominio_id = v_a), 5);
+  perform tests.texto('T nomes Torre 1 a Torre 5', (select string_agg(nome, ',' order by nome) from public.torres where condominio_id = v_a), 'Torre 1,Torre 2,Torre 3,Torre 4,Torre 5');
+  select id into v_t1 from public.torres where condominio_id = v_a and nome = 'Torre 1';
+  select id into v_t2 from public.torres where condominio_id = v_a and nome = 'Torre 2';
+  select id into v_t3 from public.torres where condominio_id = v_a and nome = 'Torre 3';
+
+  perform tests.igual('T Torre 1: 5 andares (térreo ao 4º) × 4 = 20 apartamentos', public.gerar_apartamentos(v_t1, 0, 4, 4), 20);
+  perform tests.texto('T numeração 01–04, 11–14 … 41–44',
+    (select string_agg(numero, ',' order by numero) from public.apartamentos where torre_id = v_t1),
+    '01,02,03,04,11,12,13,14,21,22,23,24,31,32,33,34,41,42,43,44');
+  perform tests.igual('T repetir a geração não duplica', public.gerar_apartamentos(v_t1, 0, 4, 4), 0);
+  perform tests.igual('T Torre 2 com 6 por andar = 30 apartamentos', public.gerar_apartamentos(v_t2, 0, 4, 6), 30);
+  perform tests.ok('T Torre 2 tem 06 e 46, Torre 1 não', exists (select 1 from public.apartamentos where torre_id = v_t2 and numero = '46')
+    and exists (select 1 from public.apartamentos where torre_id = v_t2 and numero = '06')
+    and not exists (select 1 from public.apartamentos where torre_id = v_t1 and numero in ('05', '06', '46')));
+  perform tests.igual('T ampliar a geração só cria os que faltam (Torre 1 passa a 6 por andar)', public.gerar_apartamentos(v_t1, 0, 4, 6), 10);
+  perform tests.igual('T o mesmo número pode existir em torres diferentes', (select count(*) from public.apartamentos where condominio_id = v_a and numero = '11'), 2);
+
+  perform tests.erro('T andares invertidos', format('select public.gerar_apartamentos(%L, 3, 1, 4)', v_t3), 'Andares inválidos');
+  perform tests.erro('T andar acima do limite', format('select public.gerar_apartamentos(%L, 0, 31, 4)', v_t3), 'Andares inválidos');
+  perform tests.erro('T zero por andar', format('select public.gerar_apartamentos(%L, 0, 4, 0)', v_t3), 'apartamentos por andar');
+  perform tests.erro('T dez por andar', format('select public.gerar_apartamentos(%L, 0, 4, 10)', v_t3), 'apartamentos por andar');
+  perform tests.erro('T mais de 200 por vez', format('select public.gerar_apartamentos(%L, 0, 30, 9)', v_t3), 'no máximo 200');
+  perform tests.erro('T quantidade de torres inválida', format('select public.criar_torres_lote(%L, 21)', v_a), '1 a 20');
+  perform tests.erro('T nome de torre repetido', format('select public.salvar_torre(%L, null, ''torre 1'')', v_a), 'Já existe');
+  perform tests.erro('T número de apartamento inválido', format('select public.salvar_apartamento(%L, ''a b'')', v_t3), 'Número inválido');
+  perform tests.erro('T número de apartamento com símbolo', format('select public.salvar_apartamento(%L, ''<b>'')', v_t3), 'Número inválido');
+
+  v_ap51 := public.salvar_apartamento(v_t1, '51');
+  perform tests.ok('T adicionar apartamento avulso', v_ap51 is not null);
+  perform tests.ok('T adicionar o mesmo de novo devolve o existente', public.salvar_apartamento(v_t1, '51') = v_ap51);
+  perform public.mudar_apartamento_ativo(v_ap51, false);
+  perform tests.ok('T desativar apartamento livre', not (select ativo from public.apartamentos where id = v_ap51));
+  perform tests.ok('T adicionar de novo devolve o mesmo apartamento', public.salvar_apartamento(v_t1, '51') = v_ap51);
+  perform tests.ok('T e ele volta a ficar ativo', (select ativo from public.apartamentos where id = v_ap51));
+  perform public.salvar_torre(v_a, v_t3, 'Bloco C');
+  perform tests.texto('T renomear torre', (select nome from public.torres where id = v_t3), 'Bloco C');
+  perform public.salvar_torre(v_a, v_t3, 'Torre 3');
+
+  -- vínculo de moradores
+  select id into v_ap from public.apartamentos where torre_id = v_t1 and numero = '11';
+  select id into v_ap2 from public.apartamentos where torre_id = v_t2 and numero = '32';
+  perform public.definir_apartamento_membro(v_a, tests.mor(), v_ap);
+  perform tests.ok('T síndico liga o morador ao apartamento', (select apartamento_id from public.membros where condominio_id = v_a and user_id = tests.mor()) = v_ap);
+  perform public.definir_apartamento_membro(v_a, tests.mor(), v_ap2);
+  perform tests.ok('T síndico muda o apartamento do morador', (select apartamento_id from public.membros where condominio_id = v_a and user_id = tests.mor()) = v_ap2);
+  perform tests.erro('T não desativa apartamento com morador', format('select public.mudar_apartamento_ativo(%L, false)', v_ap2), 'vinculados');
+  perform tests.erro('T não desativa torre com morador', format('select public.salvar_torre(%L, %L, ''Torre 2'', false)', v_a, v_t2), 'vinculados');
+  perform public.salvar_torre(v_a, v_t3, 'Torre 3', false);
+  perform tests.ok('T torre sem moradores pode ser desativada', (select not ativo from public.torres where id = v_t3));
+  perform tests.erro('T torre desativada não recebe apartamentos', format('select public.gerar_apartamentos(%L, 0, 1, 1)', v_t3), 'desativada');
+  perform public.salvar_torre(v_a, v_t3, 'Torre 3', true);
+  perform tests.ok('T e pode ser reativada', (select ativo from public.torres where id = v_t3));
+  perform public.definir_apartamento_membro(v_a, tests.mor(), null);
+  perform tests.ok('T síndico remove o vínculo', (select apartamento_id from public.membros where condominio_id = v_a and user_id = tests.mor()) is null);
+  perform public.definir_apartamento_membro(v_a, tests.mor(), v_ap2);
+  perform tests.erro('T pessoa de fora do condomínio', format('select public.definir_apartamento_membro(%L, %L, %L)', v_a, '00000000-0000-0000-0000-0000000000b3', v_ap), 'não encontrada');
+  perform tests.logout();
+
+  -- condomínio B: estrutura própria
+  perform tests.login('00000000-0000-0000-0000-0000000000b2');
+  perform public.criar_torres_lote(v_b, 1);
+  select id into v_tb from public.torres where condominio_id = v_b;
+  perform public.gerar_apartamentos(v_tb, 0, 1, 2);
+  select id into v_apb from public.apartamentos where torre_id = v_tb limit 1;
+  perform tests.igual('T condomínio B vê só as próprias torres', (select count(*) from public.torres), 1);
+  perform tests.erro('T síndico do B não mexe na torre do A', format('select public.gerar_apartamentos(%L, 0, 1, 1)', v_t3), 'Sem permissão');
+  perform tests.erro('T síndico do B não cria torre no A', format('select public.criar_torres_lote(%L, 1)', v_a), 'Sem permissão');
+  perform tests.erro('T síndico do B não desativa apartamento do A', format('select public.mudar_apartamento_ativo(%L, false)', v_ap), 'Sem permissão');
+  perform tests.logout();
+
+  perform tests.erro('T o banco recusa apartamento de outro condomínio mesmo sem passar pela função (membro)',
+    format('update public.membros set apartamento_id = %L where condominio_id = %L and user_id = %L', v_apb, v_a, tests.mor()), 'foreign key');
+  perform tests.erro('T o banco recusa apartamento de outro condomínio mesmo sem passar pela função (convite)',
+    format('update public.convites set apartamento_id = %L where condominio_id = %L', v_apb, v_a), 'foreign key');
+  perform tests.login(tests.sind());
+  perform tests.erro('T apartamento de outro condomínio não vale', format('select public.definir_apartamento_membro(%L, %L, %L)', v_a, tests.mor(), v_apb), 'não encontrado');
+  perform tests.erro('T convite com apartamento de outro condomínio', format('select public.convidar_membro(%L, ''fora@teste.com'', ''morador'', %L)', v_a, v_apb), 'não encontrado');
+  perform tests.logout();
+
+  -- papéis sem permissão
+  perform tests.login(tests.gest());
+  perform tests.erro('T gestor não cria torres', format('select public.criar_torres_lote(%L, 1)', v_a), 'Sem permissão');
+  perform tests.erro('T gestor não gera apartamentos', format('select public.gerar_apartamentos(%L, 0, 1, 1)', v_t3), 'Sem permissão');
+  perform tests.erro('T gestor não vincula morador', format('select public.definir_apartamento_membro(%L, %L, %L)', v_a, tests.mor(), v_ap), 'Sem permissão');
+  perform tests.ok('T gestor lê torres e apartamentos', (select count(*) from public.torres) = 5 and (select count(*) from public.apartamentos) > 50);
+  perform tests.logout();
+  perform tests.login(tests.mor());
+  perform tests.igual('T morador lê as torres do próprio condomínio', (select count(*) from public.torres), 5);
+  perform tests.ok('T morador lê os apartamentos do próprio condomínio', (select count(*) from public.apartamentos) > 50);
+  perform tests.erro('T morador não cria torres', format('select public.criar_torres_lote(%L, 1)', v_a), 'Sem permissão');
+  perform tests.erro('T morador não escreve direto em apartamentos', format('insert into public.apartamentos (condominio_id, torre_id, numero) values (%L, %L, ''99'')', v_a, v_t3), 'permission denied');
+  perform tests.erro('T morador não escreve direto em torres', format('update public.torres set nome = ''X'' where id = %L', v_t3), 'permission denied');
+  perform tests.erro('T morador não troca o próprio apartamento direto', format('update public.membros set apartamento_id = %L where user_id = %L', v_ap, tests.mor()), 'permission denied');
+  perform tests.erro('T morador não troca o próprio apartamento por função', format('select public.definir_apartamento_membro(%L, %L, %L)', v_a, tests.mor(), v_ap), 'Sem permissão');
+  perform tests.logout();
+
+  -- convites levam o apartamento
+  select id into v_ap from public.apartamentos where torre_id = v_t1 and numero = '12';
+  perform tests.login(tests.sind());
+  perform public.convidar_membro(v_a, 'novo.morador@teste.com', 'morador', v_ap);
+  perform tests.ok('T convite guarda o apartamento', (select apartamento_id from public.convites where condominio_id = v_a and email = 'novo.morador@teste.com') = v_ap);
+  perform public.convidar_membro(v_a, 'novo.morador@teste.com', 'morador');
+  perform tests.ok('T convidar de novo sem apartamento não apaga o que já estava', (select apartamento_id from public.convites where condominio_id = v_a and email = 'novo.morador@teste.com') = v_ap);
+  select id into v_cv from public.convites where condominio_id = v_a and email = 'novo.morador@teste.com';
+  select id into v_ap2 from public.apartamentos where torre_id = v_t2 and numero = '23';
+  perform public.definir_apartamento_convite(v_cv, v_ap2);
+  perform tests.ok('T síndico muda o apartamento do convite', (select apartamento_id from public.convites where id = v_cv) = v_ap2);
+  perform tests.erro('T não desativa apartamento com convite pendente', format('select public.mudar_apartamento_ativo(%L, false)', v_ap2), 'vinculados');
+  perform tests.erro('T convite com apartamento de outro condomínio (edição)', format('select public.definir_apartamento_convite(%L, %L)', v_cv, v_apb), 'não encontrado');
+  perform tests.logout();
+  perform tests.login(tests.gest());
+  perform tests.erro('T gestor não muda apartamento de convite', format('select public.definir_apartamento_convite(%L, null)', v_cv), 'Sem permissão');
+  perform tests.logout();
+
+  insert into auth.users (id, email, email_confirmed_at) values ('00000000-0000-0000-0000-0000000000e2', 'novo.morador@teste.com', now());
+  perform tests.ok('T quem cria a conta já entra no apartamento do convite',
+    (select apartamento_id from public.membros where condominio_id = v_a and user_id = '00000000-0000-0000-0000-0000000000e2') = v_ap2);
+  perform tests.ok('T o convite fica como usado', (select usado_em is not null from public.convites where id = v_cv));
+
+  -- pessoa que já tem conta confirmada entra direto, com apartamento
+  insert into auth.users (id, email, email_confirmed_at) values ('00000000-0000-0000-0000-0000000000e3', 'ja.tem.conta@teste.com', now());
+  perform tests.login(tests.sind());
+  select id into v_ap from public.apartamentos where torre_id = v_t1 and numero = '13';
+  perform tests.texto('T conta existente é vinculada na hora', public.convidar_membro(v_a, 'ja.tem.conta@teste.com', 'morador', v_ap), 'vinculado');
+  perform tests.ok('T e já fica no apartamento', (select apartamento_id from public.membros where condominio_id = v_a and user_id = '00000000-0000-0000-0000-0000000000e3') = v_ap);
+  perform tests.ok('T chamada antiga (3 argumentos) continua valendo', public.convidar_membro(v_a, 'tres.args@teste.com', 'morador') = 'convite_criado');
+  perform tests.ok('T alterações de torres e apartamentos ficam na auditoria',
+    (select count(*) from public.auditoria where tabela = 'apartamentos' and condominio_id = v_a) > 50
+    and (select count(*) from public.auditoria where tabela = 'torres' and condominio_id = v_a) >= 5
+    and exists (select 1 from public.auditoria where tabela = 'membros' and condominio_id = v_a and depois ? 'apartamento_id'));
+  perform tests.logout();
+end $$;
+
+-- ============================================================
 -- Conferência final de consistência (todos os condomínios)
 -- ============================================================
 do $$

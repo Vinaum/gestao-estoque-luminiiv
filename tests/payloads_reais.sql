@@ -24,6 +24,32 @@ begin
   select id into ci from compra_itens where compra_id = compra;
   rec := public.registrar_recebimento(compra, format('[{"compra_item_id":"%s","quantidade":6,"vencimento":"2027-06-01"}]', ci)::jsonb, '2026-11-16', null, gen_random_uuid());
 end $$;
+-- torres, apartamentos e convites com apartamento: exatamente como a tela envia (parâmetros nomeados)
+select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-0000000000a2',true);  -- síndico
+do $$
+declare c uuid; t uuid; ap uuid; ap51 uuid; n int; cv uuid;
+begin
+  select id into c from public.condominios limit 1;
+  n := public.criar_torres_lote(p_condominio_id => c, p_quantidade => 5, p_prefixo => 'Torre');
+  select id into t from public.torres where condominio_id = c and nome = 'Torre 1';
+  n := public.gerar_apartamentos(p_torre_id => t, p_andar_inicial => 0, p_andar_final => 4, p_por_andar => 4);
+  perform public.salvar_torre(p_condominio_id => c, p_torre_id => t, p_nome => 'Torre 1', p_ativo => true);
+  perform public.salvar_torre(p_condominio_id => c, p_torre_id => null, p_nome => 'Torre extra', p_ativo => true);
+  select id into ap from public.apartamentos where torre_id = t and numero = '11';
+  ap51 := public.salvar_apartamento(p_torre_id => t, p_numero => '51');
+  perform public.convidar_membro(p_condominio_id => c, p_email => 'payload@x.com', p_papel => 'morador', p_apartamento_id => ap);
+  perform public.convidar_membro(p_condominio_id => c, p_email => 'payload2@x.com', p_papel => 'gestor', p_apartamento_id => null);
+  select id into cv from public.convites where email = 'payload@x.com';
+  perform public.definir_apartamento_convite(p_convite_id => cv, p_apartamento_id => null);
+  perform public.definir_apartamento_convite(p_convite_id => cv, p_apartamento_id => ap);
+  perform public.definir_apartamento_membro(p_condominio_id => c, p_user_id => '00000000-0000-0000-0000-0000000000a4', p_apartamento_id => ap);
+  perform public.definir_apartamento_membro(p_condominio_id => c, p_user_id => '00000000-0000-0000-0000-0000000000a4', p_apartamento_id => null);
+  perform public.mudar_apartamento_ativo(p_apartamento_id => ap51, p_ativo => false);
+  perform public.mudar_apartamento_ativo(p_apartamento_id => ap51, p_ativo => true);
+  perform public.cancelar_convite(p_convite_id => cv);
+  raise notice 'payloads de torres/apartamentos aceitos';
+end $$;
+select 'torres e apartamentos' as teste, (select count(*) from public.torres) as torres, (select count(*) from public.apartamentos) as apartamentos;
 select 'status após recebimento parcial' as teste, status from public.compras order by criado_em desc limit 1;
 select 'estoque' as teste, estoque_atual, qtd_em_pedido, status, qtd_sugerida from public.v_estoque_item where nome = 'Payload';
 rollback;

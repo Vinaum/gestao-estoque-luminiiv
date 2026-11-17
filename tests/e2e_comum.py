@@ -51,3 +51,12 @@ def esperar(pg, expr, ms=8000):
         except Exception: pass
         time.sleep(0.1)
     raise TimeoutError('condição não atendida: ' + expr)
+
+def esperar_chamada(pg, ch, nome, n=1, ms=6000):
+    """Espera a n-ésima chamada `nome` ao banco e deixa a tela recarregar e redesenhar.
+    Usa pg.wait_for_timeout (não time.sleep): o Playwright só serve as respostas simuladas enquanto é chamado."""
+    fim = time.time() + ms / 1000
+    while len([x for x in ch if x[0] == nome]) < n:
+        if time.time() > fim: raise TimeoutError('chamada não feita: %s' % nome)
+        pg.wait_for_timeout(50)
+    pg.wait_for_timeout(500)

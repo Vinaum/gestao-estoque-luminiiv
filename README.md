@@ -11,6 +11,7 @@ Aplicação web para o síndico e a comissão de um condomínio controlarem o es
 - **Compras separadas do recebimento**: rascunho → aprovação do síndico → pedido → recebimento (parcial ou total, em vários lotes). Nota fiscal em PDF/JPG/PNG (até 5 MB) em armazenamento privado.
 - **Painel** (síndico e gestor): itens críticos, vencimentos, compras pendentes, gastos, cobertura de estoque.
 - **Relatórios** de consumo e de gastos, com gráficos.
+- **Torres e apartamentos**: estrutura do condomínio e vínculo de cada morador ao seu apartamento (base da futura área dos moradores).
 - **Administração**: condomínios, usuários, convites (que podem ser editados ou cancelados) e papéis; diagnóstico de consistência do estoque; histórico de auditoria.
 
 ## Papéis
@@ -37,7 +38,7 @@ app/            Interface (index.html, js/, assets/)
   js/lib/       Utilitários: HTML seguro, formatação, janelas, Supabase, estado
   js/modules/   Uma pasta por tela (operacao, estoque, compras, painel, relatorios, admin…)
 vendor/         Bibliotecas fixas (supabase-js, Chart.js) + SHA256SUMS
-supabase/       Banco: migrations/ (0001–0014), tests/, pendentes/
+supabase/       Banco: migrations/ (0001–0015), tests/, pendentes/
 tests/          Testes do front e auditoria de segurança
 docs/           Plano, mapa de testes e roteiro da virada
 ```

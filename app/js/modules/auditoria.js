@@ -1,8 +1,8 @@
 // Transforma um registro de auditoria em texto legível (funções puras).
-export const NOME_TABELA = { itens: 'Item', fornecedores: 'Fornecedor', compras: 'Compra', membros: 'Participante', condominio_config: 'Parâmetros', condominios: 'Condomínio', movimentacoes: 'Movimentação' };
-export const NOME_ACAO = { insert: 'Criado', update: 'Alterado', delete: 'Removido', ajuste_estoque: 'Ajuste de estoque', estorno: 'Estorno' };
+export const NOME_TABELA = { itens: 'Item', fornecedores: 'Fornecedor', compras: 'Compra', membros: 'Participante', condominio_config: 'Parâmetros', condominios: 'Condomínio', movimentacoes: 'Movimentação', torres: 'Torre', apartamentos: 'Apartamento', convites: 'Convite' };
+export const NOME_ACAO = { insert: 'Criado', update: 'Alterado', delete: 'Removido', ajuste_estoque: 'Ajuste de estoque', estorno: 'Estorno', cancelar: 'Convite cancelado', alterar_papel: 'Papel do convite alterado' };
 const CAMPOS = { nome: 'nome', estoque_minimo: 'mínimo', estoque_ideal: 'ideal', ativo: 'ativo', papel: 'papel', status: 'situação', localizacao: 'local',
-  cnpj: 'CNPJ', faixa_atencao: 'faixa de atenção', venc_alerta_1: 'alerta 1 (dias)', venc_alerta_2: 'alerta 2 (dias)', numero_nf: 'nota fiscal', fornecedor_id: 'fornecedor' };
+  cnpj: 'CNPJ', faixa_atencao: 'faixa de atenção', venc_alerta_1: 'alerta 1 (dias)', venc_alerta_2: 'alerta 2 (dias)', numero_nf: 'nota fiscal', numero: 'número', apartamento_id: 'apartamento', fornecedor_id: 'fornecedor' };
 const IGNORAR = new Set(['criado_em', 'atualizado_em', 'id']);
 const fmt = (v) => (v === null || v === undefined ? '—' : typeof v === 'boolean' ? (v ? 'sim' : 'não') : String(v));
 

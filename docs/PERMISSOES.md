@@ -16,6 +16,9 @@ Decisões do síndico (17/11/2026). A tabela abaixo é o que o sistema faz hoje;
 | **Painel e relatório de gastos** | ✓ | ✓ | ✓ | – |
 | Parâmetros do condomínio (faixas de alerta, prazos) | ✓ | ✓ | – | – |
 | Usuários, convites, auditoria, diagnóstico | ✓ | ✓ | – | – |
+| Torres e apartamentos: cadastrar, gerar, desativar | ✓ | ✓ | – | – |
+| Ver torres e apartamentos | ✓ | ✓ | ✓ | ✓ |
+| Ligar pessoa ou convite a um apartamento | ✓ | ✓ | – | – |
 | Criar condomínio, definir síndico, catálogos | ✓ | – | – | – |
 
 ## Em aberto
