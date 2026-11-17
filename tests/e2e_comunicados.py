@@ -113,7 +113,7 @@ def main():
             pg.locator('.cartao-com', has_text='Corte de água').locator('[data-acao=arquivar]').click(); pg.wait_for_selector('.modal [data-r="1"]'); pg.click('.modal [data-r="1"]')
             esperar_chamada(pg, ch, 'arquivar_comunicado', 1)
             ok([x for x in ch if x[0] == 'arquivar_comunicado'][0][1] == {'p_id': ID(1)}, 'confirmar arquiva o comunicado certo')
-            pg.locator('.cartao-com', has_text='Com anexo').locator('[data-acao=leituras]').click(); pg.wait_for_selector('.modal .barra')
+            pg.locator('.cartao-com', has_text='Com anexo').locator('[data-acao=leituras]').click(); pg.wait_for_selector('.modal .progresso')
             tx = pg.inner_text('.modal')
             ok('3 de 4' in tx.replace('Lido por ', '').replace(' pessoas (75%).', '').replace('\n', ' ') or 'Lido por 3 de 4' in tx, 'mostra "lido por 3 de 4"')
             ok(pg.locator('.modal img').count() == 0 and XSS in tx and 'sem apartamento' in tx, 'pendentes: nome malicioso como texto e "sem apartamento"')

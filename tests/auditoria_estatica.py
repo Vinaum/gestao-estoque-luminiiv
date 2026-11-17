@@ -120,4 +120,11 @@ mig = os.path.join(RAIZ, 'supabase', 'migrations')
 if os.path.isdir(mig):
     ach = [f for f in os.listdir(mig) if re.search(r'\bdrop\s+(table|schema|column)\b|\btruncate\b', open(os.path.join(mig, f), encoding='utf-8').read().replace('before truncate', ''), re.I)]
     ach and falha('migration destrutiva fora de pendentes/: %s' % ach) or ok('nenhuma migration destrutiva (drop table/schema/column, truncate)')
+# 11) CSS: a mesma classe não pode ser definida duas vezes como regra base (uma sobrescreve a outra em silêncio)
+css = os.path.join(RAIZ, 'app', 'assets', 'css', 'app.css')
+if os.path.exists(css):
+    from collections import Counter
+    c = Counter(re.findall(r'^(\.[A-Za-z0-9_-]+)\s*\{', open(css, encoding='utf-8').read(), re.M))
+    dup = sorted(k for k, v in c.items() if v > 1)
+    dup and falha('classe CSS definida mais de uma vez (conflito): %s' % dup) or ok('nenhuma classe CSS redefinida')
 print('RESULTADO:', 'FALHOU %d' % len(falhas) if falhas else 'TUDO OK'); sys.exit(1 if falhas else 0)

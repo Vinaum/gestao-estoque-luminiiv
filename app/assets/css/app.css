@@ -156,8 +156,8 @@ tr.inativo td{ color:var(--muted); }
 .corpo-comunicado{ white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.55; margin:8px 0 4px; max-height:55vh; overflow:auto; }
 .linha-campos{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 @media (max-width:560px){ .linha-campos{ grid-template-columns:1fr; } }
-.barra{ background:#eee9dc; border-radius:20px; height:8px; margin:6px 0 14px; overflow:hidden; }
-.barra-cheia{ background:var(--ok); height:100%; }
+.progresso{ background:#eee9dc; border-radius:20px; height:8px; margin:6px 0 14px; overflow:hidden; }
+.progresso-cheio{ background:var(--ok); height:100%; }
 .lista-simples{ list-style:none; padding:0; margin:0 0 8px; max-height:40vh; overflow:auto; }
 .lista-simples li{ padding:6px 0; border-bottom:1px solid #eee9dc; display:flex; justify-content:space-between; gap:12px; }
 .modal h4{ margin:12px 0 6px; font-size:13px; font-family:'Space Grotesk',sans-serif; }

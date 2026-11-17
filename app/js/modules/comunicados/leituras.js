@@ -14,7 +14,7 @@ export async function abrirLeituras(c, est) {
   janelaInfo('Quem leu', h`
     <p><strong>${c.titulo}</strong></p>
     <p>Lido por <strong data-lidos>${lidos}</strong> de <strong data-total>${total}</strong> pessoas (${pct}%).</p>
-    <div class="barra" role="img" aria-label="${pct}% leram"><div class="barra-cheia" style="width:${pct}%"></div></div>
+    <div class="progresso" role="img" aria-label="${pct}% leram"><div class="progresso-cheio" style="width:${pct}%"></div></div>
     ${pend.length ? h`<h4>Ainda não abriram (${total - lidos})</h4>
       <ul class="lista-simples">${pend.map((p) => h`<li>${p.nome} <span class="dica">${rotuloApto(p.apartamento_id, est) || 'sem apartamento'}</span></li>`)}</ul>
       ${total - lidos > pend.length ? h`<p class="dica">Mostrando as ${pend.length} primeiras.</p>` : ''}`
