@@ -35,5 +35,8 @@ export async function abrir(el) {
         : h`<div class="empty">Nenhum comunicado no momento.</div>`}</div>
     <div class="panel"><h3>Prestadores</h3>
       <p>Procurando marceneiro, pedreiro, diarista…? Veja quem os vizinhos indicam e indique também quem já te atendeu bem.</p>
-      <p><a class="btn ghost" href="#/prestadores">Ver prestadores</a></p></div>`);
+      <p><a class="btn ghost" href="#/prestadores">Ver prestadores</a></p></div>
+    <div class="panel"><h3>Atas das assembleias</h3>
+      <p>As atas das assembleias ficam guardadas aqui, em PDF, com busca por assunto.</p>
+      <p><a class="btn ghost" href="#/atas">Ver atas</a></p></div>`);
 }

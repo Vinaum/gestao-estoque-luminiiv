@@ -1342,6 +1342,83 @@ begin
 end $$;
 
 -- ============================================================
+-- Atas das assembleias
+-- ============================================================
+do $$
+declare
+  v_a uuid := tests.id('condA'); v_b uuid := tests.id('condB');
+  a1 uuid; a2 uuid; v_path text; v_ret text;
+begin
+  raise notice '--- Atas ---';
+  perform tests.login(tests.mor());
+  perform tests.erro('A morador não cadastra ata', format('select public.salvar_ata(%L, null, %L::jsonb)', v_a, '{"titulo":"x","data_assembleia":"2026-03-10"}'), 'permissão');
+  perform tests.logout();
+
+  perform tests.login(tests.gest());
+  a1 := public.salvar_ata(v_a, null, jsonb_build_object('titulo', 'AGO 2026', 'data_assembleia', '2026-03-10', 'tipo', 'ordinaria', 'resumo', 'Aprovação das contas.'));
+  perform tests.texto('A gestor cadastra ata', (select titulo from public.atas where id = a1), 'AGO 2026');
+  perform tests.erro('A data no futuro é recusada', format('select public.salvar_ata(%L, null, %L::jsonb)', v_a, jsonb_build_object('titulo', 'x', 'data_assembleia', (current_date + 1)::text)), 'futuro');
+  perform tests.erro('A sem data', format('select public.salvar_ata(%L, null, %L::jsonb)', v_a, '{"titulo":"x"}'), 'Informe a data');
+  perform tests.erro('A data inválida', format('select public.salvar_ata(%L, null, %L::jsonb)', v_a, '{"titulo":"x","data_assembleia":"31/02/2026"}'), 'inválida');
+  perform tests.erro('A sem título', format('select public.salvar_ata(%L, null, %L::jsonb)', v_a, '{"titulo":"  ","data_assembleia":"2026-03-10"}'), 'título');
+  perform tests.erro('A tipo inválido', format('select public.salvar_ata(%L, null, %L::jsonb)', v_a, '{"titulo":"x","data_assembleia":"2026-03-10","tipo":"festa"}'), 'Tipo');
+  perform tests.erro('A resumo longo demais', format('select public.salvar_ata(%L, null, %L::jsonb)', v_a, jsonb_build_object('titulo', 'x', 'data_assembleia', '2026-03-10', 'resumo', repeat('a', 2001))), '2000');
+  perform tests.erro('A gestor não cadastra no condomínio B', format('select public.salvar_ata(%L, null, %L::jsonb)', v_b, '{"titulo":"x","data_assembleia":"2026-03-10"}'), 'permissão');
+  perform tests.erro('A editar ata de outro condomínio pelo id', format('select public.salvar_ata(%L, %L, %L::jsonb)', v_b, a1, '{"titulo":"x","data_assembleia":"2026-03-10"}'), 'permissão');
+  perform public.salvar_ata(v_a, a1, jsonb_build_object('titulo', 'AGO 2026 (contas)', 'data_assembleia', '2026-03-11', 'tipo', 'ordinaria'));
+  perform tests.ok('A gestor edita e o resumo vazio vira nulo', (select titulo = 'AGO 2026 (contas)' and data_assembleia = '2026-03-11' and resumo is null from public.atas where id = a1));
+  a2 := public.salvar_ata(v_a, null, jsonb_build_object('titulo', 'AGE obra', 'data_assembleia', '2026-06-01', 'tipo', 'extraordinaria'));
+  perform tests.logout();
+
+  -- morador não vê ata sem PDF
+  perform tests.login(tests.mor());
+  perform tests.igual('A morador não vê ata ainda sem PDF', (select count(*) from public.atas where id in (a1, a2)), 0);
+  perform tests.logout();
+
+  -- PDF
+  perform tests.login(tests.gest());
+  v_path := v_a || '/' || a1 || '/ago-2026.pdf';
+  perform tests.erro('A arquivo de outra ata', format('select public.definir_arquivo_ata(%L, %L, ''x.pdf'')', a1, v_a || '/' || a2 || '/x.pdf'), 'não pertence');
+  perform tests.erro('A arquivo de outro condomínio', format('select public.definir_arquivo_ata(%L, %L, ''x.pdf'')', a1, v_b || '/' || a1 || '/x.pdf'), 'não pertence');
+  perform tests.erro('A caminho com subpasta extra', format('select public.definir_arquivo_ata(%L, %L, ''x.pdf'')', a1, v_a || '/' || a1 || '/a/x.pdf'), 'não pertence');
+  perform tests.erro('A só PDF', format('select public.definir_arquivo_ata(%L, %L, ''x.jpg'')', a1, v_a || '/' || a1 || '/x.jpg'), 'PDF');
+  perform tests.erro('A nome do arquivo vazio', format('select public.definir_arquivo_ata(%L, %L, '' '')', a1, v_path), 'Nome do arquivo');
+  insert into storage.objects (bucket_id, name) values ('atas', v_path);
+  perform tests.erro('A gestor não envia PDF para outro condomínio', format('insert into storage.objects (bucket_id, name) values (''atas'', %L)', v_b || '/' || a1 || '/x.pdf'), 'row-level security');
+  perform public.definir_arquivo_ata(a1, v_path, 'AGO 2026.pdf');
+  perform tests.texto('A PDF registrado', (select arquivo_nome from public.atas where id = a1), 'AGO 2026.pdf');
+  perform tests.logout();
+
+  perform tests.login(tests.mor());
+  perform tests.igual('A morador vê a ata com PDF (e não a sem PDF)', (select count(*) from public.atas where id in (a1, a2)), 1);
+  perform tests.igual('A morador lê o PDF', (select count(*) from storage.objects where bucket_id = 'atas'), 1);
+  perform tests.erro('A morador não envia PDF', format('insert into storage.objects (bucket_id, name) values (''atas'', %L)', v_a || '/' || a1 || '/z.pdf'), 'row-level security');
+  delete from storage.objects where bucket_id = 'atas';
+  perform tests.igual('A morador não apaga o PDF', (select count(*) from storage.objects where bucket_id = 'atas'), 1);
+  perform tests.erro('A morador não registra arquivo', format('select public.definir_arquivo_ata(%L, %L, ''x.pdf'')', a1, v_path), 'permissão');
+  perform tests.erro('A morador não exclui ata', format('select public.excluir_ata(%L)', a1), 'permissão');
+  perform tests.erro('A morador não altera direto na tabela', format('update public.atas set titulo = ''x'' where id = %L', a1), 'permission denied');
+  perform tests.logout();
+
+  perform tests.login('00000000-0000-0000-0000-0000000000b2');
+  perform tests.igual('A síndico do B não vê atas do A', (select count(*) from public.atas where condominio_id = v_a), 0);
+  perform tests.igual('A síndico do B não lê PDFs do A', (select count(*) from storage.objects where bucket_id = 'atas'), 0);
+  perform tests.logout();
+
+  perform tests.login(tests.gest());
+  perform tests.erro('A gestor não exclui ata', format('select public.excluir_ata(%L)', a1), 'permissão');
+  perform tests.logout();
+  perform tests.login(tests.sind());
+  v_ret := public.excluir_ata(a1);
+  perform tests.texto('A síndico exclui e recebe o caminho do PDF', v_ret, v_path);
+  perform tests.ok('A ata sumiu', not exists (select 1 from public.atas where id = a1));
+  perform tests.ok('A exclusão fica na auditoria', exists (select 1 from public.auditoria where tabela = 'atas' and registro_id = a1::text and acao = 'delete'));
+  perform tests.igual('A ata sem PDF devolve caminho nulo', (select count(*) from (select public.excluir_ata(a2) x) q where x is null), 1);
+  perform tests.erro('A excluir de novo: não encontrada', format('select public.excluir_ata(%L)', a1), 'não encontrada');
+  perform tests.logout();
+end $$;
+
+-- ============================================================
 -- Conferência final de consistência (todos os condomínios)
 -- ============================================================
 do $$

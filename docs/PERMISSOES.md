@@ -24,6 +24,9 @@ Decisões do síndico (17/11/2026). A tabela abaixo é o que o sistema faz hoje;
 | Ver prestadores publicados e recomendar | ✓ | ✓ | ✓ | ✓ (com apartamento) |
 | Indicar prestador | ✓ (publica direto) | ✓ (publica direto) | com apartamento (fica pendente) | com apartamento (fica pendente) |
 | Aprovar, recusar, remover prestador; remover comentário | ✓ | ✓ | – | – |
+| Ler atas das assembleias (as que já têm PDF) e abrir o PDF | ✓ | ✓ | ✓ | ✓ |
+| Cadastrar e editar ata, enviar ou trocar o PDF | ✓ | ✓ | ✓ | – |
+| **Excluir ata** | ✓ | ✓ | – | – |
 | Criar condomínio, definir síndico, catálogos | ✓ | – | – | – |
 
 ## Em aberto

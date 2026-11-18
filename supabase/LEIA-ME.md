@@ -23,6 +23,7 @@ Cada arquivo pode ser repetido sem estragar nada.
 | 16 | 0016_comunicados | Comunicados (rascunho → publicado → arquivado), leitura por morador, anexos em bucket privado |
 | 17 | 0017_prestadores | Prestadores indicados por moradores (síndico aprova), recomendações, leitura só por função |
 | 18 | 0018_excluir_item | Excluir item sem histórico (com histórico, só inativar) |
+| 19 | 0019_atas | Atas das assembleias: PDF em bucket privado (até 10 MB); síndico e gestor cadastram, só o síndico exclui; todos os membros leem |
 
 `pendentes/0099_remover_legado.sql` **não deve ser rodado** sem aprovação separada: apaga o modelo antigo.
 

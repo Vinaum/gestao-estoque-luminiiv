@@ -36,6 +36,7 @@ def main():
             ok(pg.locator('#pagina img').count() == 0 and XSS in t, 'título malicioso aparece como texto')
             ok('Ver todos os comunicados (5)' in t, 'atalho informa o total vigente')
             ok(pg.locator('#pagina a[href="#/prestadores"]').count() == 1, 'atalho para Prestadores')
+            ok(pg.locator('#pagina a[href="#/atas"]').count() == 1, 'atalho para Atas')
             pg.click('[data-inicio-com] >> nth=0'); pg.wait_for_function("location.hash === '#/comunicados'")
             ok(True, 'clicar num comunicado leva à lista de comunicados')
             ok(not erros, 'início sem erros de script: %s' % erros); nav.close()

@@ -199,3 +199,17 @@ a.btn.ghost{ background:transparent; color:var(--ink); border:1px solid var(--bo
 a.btn:hover{ opacity:.88; }
 a.cartao-com .dica{ font-size:12px; color:var(--muted); }
 a.cartao-com.novo{ padding-left:13px; }
+/* Atas */
+.acoes-linha{ white-space:nowrap; text-align:right; }
+.acoes-linha .btn{ margin-right:4px; }
+.resumo-ata{ white-space:pre-wrap; overflow-wrap:anywhere; max-width:60ch; margin-top:2px; }
+#at-busca{ flex:1 1 260px; min-width:0; }
+@media (max-width:640px){
+  .tabela-atas thead{ display:none; }
+  .tabela-atas, .tabela-atas tbody, .tabela-atas tr, .tabela-atas td{ display:block; width:100%; box-sizing:border-box; }
+  .tabela-atas tr{ border-bottom:1px solid var(--border); padding:10px 0; }
+  .tabela-atas td{ border:0; padding:2px 0; }
+  .tabela-atas td:first-child{ display:inline-block; width:auto; margin-right:8px; color:var(--muted); font-size:13px; }
+  .tabela-atas td:nth-child(2){ display:inline-block; width:auto; }
+  .tabela-atas .acoes-linha{ text-align:left; white-space:normal; padding-top:8px; }
+}
