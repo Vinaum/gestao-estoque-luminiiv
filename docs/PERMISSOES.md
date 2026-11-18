@@ -8,6 +8,7 @@ Decisões do síndico (17/11/2026). A tabela abaixo é o que o sistema faz hoje;
 | Saída, entrada extraordinária | ✓ | ✓ | ✓ | – |
 | Ajuste de inventário e estorno (com justificativa, sem aprovação) | ✓ | ✓ | ✓ | – |
 | Cadastrar item, mudar mínimo/ideal | ✓ | ✓ | ✓ | – |
+| Ferramentas e patrimônio: cadastrar, marcar item como permanente, atualizar conservação e local | ✓ | ✓ | ✓ | – |
 | Cadastrar e editar fornecedor | ✓ | ✓ | ✓ | – |
 | **Ativar/desativar fornecedor** | ✓ | ✓ | – | – |
 | Montar compra e enviar para aprovação | ✓ | ✓ | ✓ | – |

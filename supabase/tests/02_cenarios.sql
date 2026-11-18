@@ -1419,6 +1419,66 @@ begin
 end $$;
 
 -- ============================================================
+-- Itens permanentes (ferramentas e patrimônio)
+-- ============================================================
+do $$
+declare
+  v_a uuid := tests.id('condA'); v_item uuid := tests.id('papel');
+  v_cat uuid; v_un uuid; v_novo uuid; v_lote uuid; v_saldo numeric; e record;
+begin
+  raise notice '--- Itens permanentes ---';
+  -- preparação: um lote do item com saldo, vencido (como superusuário)
+  select id into v_lote from public.lotes where item_id = v_item and saldo > 0 limit 1;
+  set local session_replication_role = replica;   -- o lote só aceita mudar o saldo; aqui é preparação do teste
+  update public.lotes set vencimento = current_date - 10 where id = v_lote;
+  set local session_replication_role = origin;
+  select sum(saldo) into v_saldo from public.lotes where item_id = v_item;
+  perform tests.ok('P preparação: item tem saldo', v_saldo > 0);
+
+  perform tests.login(tests.gest());
+  perform public.atualizar_parametros_item(v_item, v_saldo + 5, v_saldo + 10);
+  perform tests.texto('P antes: item de consumo abaixo do mínimo pede compra', (select status from public.v_estoque_item where item_id = v_item), 'comprar');
+  perform tests.texto('P antes: lote vencido aparece como vencido', (select faixa_vencimento from public.v_lotes where lote_id = v_lote), 'vencido');
+  perform tests.igual('P antes: aparece na cobertura', (select count(*) from public.v_cobertura where item_id = v_item), 1);
+
+  update public.itens set permanente = true, conservacao = 'reparo' where id = v_item;
+  select * into e from public.v_estoque_item where item_id = v_item;
+  perform tests.texto('P marcado como permanente: status permanente', e.status, 'permanente');
+  perform tests.ok('P permanente: sem sugestão de compra e mínimo/ideal zerados', e.qtd_sugerida = 0 and e.estoque_minimo = 0 and e.estoque_ideal = 0);
+  perform tests.ok('P permanente: quantidade em estoque continua a mesma', e.estoque_atual = v_saldo);
+  perform tests.texto('P permanente: conservação gravada', e.conservacao, 'reparo');
+  perform tests.texto('P permanente: lote não entra em alerta de vencimento', (select faixa_vencimento from public.v_lotes where lote_id = v_lote), 'sem_vencimento');
+  perform tests.igual('P permanente: fora da cobertura de consumo', (select count(*) from public.v_cobertura where item_id = v_item), 0);
+  perform tests.erro('P permanente: mínimo/ideal recusados com mensagem clara', format('select public.atualizar_parametros_item(%L, 1, 2)', v_item), 'permanente');
+  update public.itens set estoque_minimo = 4, estoque_ideal = 8 where id = v_item;
+  perform tests.ok('P gravação direta de mínimo em permanente fica zerada', (select estoque_minimo = 0 and estoque_ideal = 0 from public.itens where id = v_item));
+  perform tests.erro('P conservação inválida', format('update public.itens set conservacao = ''otimo'' where id = %L', v_item), 'conservacao');
+
+  -- cadastro novo já como permanente
+  select id into v_cat from public.categorias limit 1; select id into v_un from public.unidades_medida where sigla = 'un';
+  insert into public.itens (condominio_id, nome, categoria_id, unidade_id, estoque_minimo, estoque_ideal, permanente)
+  values (v_a, 'Martelo', v_cat, v_un, 2, 3, true) returning id into v_novo;
+  perform tests.ok('P cadastro de permanente: mínimo e ideal zerados, conservação bom', (select estoque_minimo = 0 and estoque_ideal = 0 and conservacao = 'bom' from public.itens where id = v_novo));
+  perform tests.texto('P cadastro de permanente sem estoque: status permanente (não "sem estoque")', (select status from public.v_estoque_item where item_id = v_novo), 'permanente');
+  perform tests.logout();
+
+  perform tests.login(tests.mor());
+  perform tests.igual('P morador não vê itens', (select count(*) from public.itens where id = v_item), 0);
+  update public.itens set permanente = false where id = v_item;
+  perform tests.logout();
+  perform tests.ok('P morador não consegue desmarcar', (select permanente from public.itens where id = v_item));
+
+  -- voltar a ser de consumo
+  perform tests.login(tests.sind());
+  update public.itens set permanente = false where id = v_item;
+  perform tests.texto('P desmarcado: volta a ter situação de estoque (mínimo zerado: normal)', (select status from public.v_estoque_item where item_id = v_item), 'normal');
+  perform public.atualizar_parametros_item(v_item, 1, 2);
+  perform tests.ok('P desmarcado: aceita mínimo e ideal de novo', (select estoque_minimo = 1 and estoque_ideal = 2 from public.itens where id = v_item));
+  perform tests.texto('P desmarcado: lote vencido volta a alertar', (select faixa_vencimento from public.v_lotes where lote_id = v_lote), 'vencido');
+  perform tests.logout();
+end $$;
+
+-- ============================================================
 -- Conferência final de consistência (todos os condomínios)
 -- ============================================================
 do $$

@@ -1,7 +1,7 @@
 # Banco de dados — Fase 3 (nova estrutura)
 
 Pasta `migrations/`: rode **um arquivo por vez, em ordem**, no Supabase > SQL Editor.
-Cada arquivo pode ser repetido sem estragar nada.
+Cada arquivo pode ser repetido logo depois de rodado, sem estragar nada. Não rode de novo um arquivo **antigo** depois dos mais novos: algumas migrations refazem leituras (views) das anteriores — por exemplo, a 0020 refaz as da 0009.
 
 | Ordem | Arquivo | O que faz |
 |---|---|---|
@@ -24,6 +24,7 @@ Cada arquivo pode ser repetido sem estragar nada.
 | 17 | 0017_prestadores | Prestadores indicados por moradores (síndico aprova), recomendações, leitura só por função |
 | 18 | 0018_excluir_item | Excluir item sem histórico (com histórico, só inativar) |
 | 19 | 0019_atas | Atas das assembleias: PDF em bucket privado (até 10 MB); síndico e gestor cadastram, só o síndico exclui; todos os membros leem |
+| 20 | 0020_itens_permanentes | Itens permanentes (ferramentas e patrimônio): sem mínimo/ideal, fora dos alertas de compra e vencimento e da cobertura; estado de conservação. Refaz as leituras v_estoque_item, v_lotes e v_cobertura |
 
 `pendentes/0099_remover_legado.sql` **não deve ser rodado** sem aprovação separada: apaga o modelo antigo.
 

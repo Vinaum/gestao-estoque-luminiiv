@@ -22,11 +22,12 @@ function linhas() {
   if (!lista.length) return h`<div class="empty">Nenhum item ativo.</div>`;
   return h`<div class="tabela-rolagem"><table><thead><tr><th>Item</th><th>Estoque atual</th><th>Mínimo</th><th>Ideal</th><th></th><th></th></tr></thead><tbody>
     ${lista.map((i) => h`<tr class="${i.ativo ? '' : 'inativo'}" data-linha="${i.item_id}">
-      <td><b>${i.nome}</b> ${i.ativo ? '' : h`<span class="tag">inativo</span>`}<br><span class="tag">${i.categoria}</span>${i.localizacao ? h` <span class="tag">${i.localizacao}</span>` : ''}</td>
+      <td><b>${i.nome}</b> ${i.ativo ? '' : h`<span class="tag">inativo</span>`}${i.permanente ? h` <span class="tag" data-permanente>Permanente</span>` : ''}<br><span class="tag">${i.categoria}</span>${i.localizacao ? h` <span class="tag">${i.localizacao}</span>` : ''}</td>
       <td class="num">${num(i.estoque_atual)} ${i.unidade}</td>
+      ${i.permanente ? h`<td colspan="3" class="dica">Ferramenta/patrimônio: sem mínimo nem ideal</td>` : h`
       <td><input class="inp-num" inputmode="decimal" data-campo="min" data-orig="${i.estoque_minimo}" value="${numCampo(i.estoque_minimo)}" aria-label="Mínimo de ${i.nome}"></td>
       <td><input class="inp-num" inputmode="decimal" data-campo="ideal" data-orig="${i.estoque_ideal}" value="${numCampo(i.estoque_ideal)}" aria-label="Ideal de ${i.nome}"></td>
-      <td><button class="btn pequeno" data-acao="salvar" data-id="${i.item_id}" disabled>Salvar</button></td>
+      <td><button class="btn pequeno" data-acao="salvar" data-id="${i.item_id}" disabled>Salvar</button></td>`}
       <td><div class="linha-acoes">
         <button class="icon-btn" data-acao="editar" data-id="${i.item_id}">Editar</button>
         <button class="icon-btn" data-acao="historico" data-id="${i.item_id}">Histórico</button>
@@ -104,6 +105,8 @@ async function editar(id) {
         ${temEstoque ? h`<span class="dica">A unidade não muda depois que o item recebe estoque.</span>` : ''}</div>
       <div class="field"><label for="x-loc">Local</label><input id="x-loc" name="loc" value="${it.localizacao || ''}"></div>
       <div class="field"><label for="x-desc">Descrição (opcional)</label><textarea id="x-desc" name="desc" rows="2">${it.descricao || ''}</textarea></div>
+      <div class="field"><label><input type="checkbox" name="permanente" value="1" ${it.permanente ? raw('checked') : ''}> Item permanente (ferramenta ou patrimônio)</label>
+        <span class="dica">Sem mínimo, ideal nem validade; não gera alerta de compra. Aparece em “Ferramentas e patrimônio”.</span></div>
       <div class="field"><label><input type="checkbox" name="ativo" value="1" ${it.ativo ? raw('checked') : ''}> Item ativo</label>
         <span class="dica">Itens inativos somem das listas de operação e não recebem saídas.</span></div>`,
     aoEnviar: async (f) => {
@@ -111,7 +114,10 @@ async function editar(id) {
       const ativo = f.ativo === '1';
       if (it.ativo && !ativo && Number(it.estoque_atual) > 0 &&
           !(await confirmar('Inativar item com estoque?', `Ainda há ${num(it.estoque_atual)} ${it.unidade} em estoque. Ele deixará de aparecer na operação.`, { rotulo: 'Inativar', perigo: true }))) return;
-      const mudancas = { nome: f.nome.trim(), categoria_id: f.cat, localizacao: f.loc.trim() || null, descricao: f.desc.trim() || null, ativo };
+      const permanente = f.permanente === '1';
+      if (permanente && !it.permanente && Number(it.estoque_minimo) + Number(it.estoque_ideal) > 0 &&
+          !(await confirmar('Tornar item permanente?', `O mínimo (${num(it.estoque_minimo)}) e o ideal (${num(it.estoque_ideal)}) serão zerados e o item sai dos alertas de compra e de vencimento.`, { rotulo: 'Tornar permanente' }))) return;
+      const mudancas = { nome: f.nome.trim(), categoria_id: f.cat, localizacao: f.loc.trim() || null, descricao: f.desc.trim() || null, ativo, permanente };
       if (!temEstoque && f.uni) mudancas.unidade_id = f.uni;
       const { error } = await db.from('itens').update(mudancas).eq('id', id);
       if (error) throw new Error(error.code === '23505' ? 'Já existe um item com esse nome.' : error.message);

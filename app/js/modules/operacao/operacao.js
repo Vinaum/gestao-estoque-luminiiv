@@ -10,6 +10,7 @@ const STATUS = {
   comprar: ['Comprar', 'status-crit'],
   atencao: ['Atenção', 'status-warn'],
   normal: ['Normal', 'status-ok'],
+  permanente: ['Permanente (ferramenta)', 'status-neutro'],
 };
 const TIPO = { entrada: 'Entrada', consumo: 'Consumo', perda: 'Perda', ajuste: 'Ajuste', doacao: 'Doação', descarte: 'Descarte' };
 const MOTIVOS = ['Uso diário', 'Manutenção preventiva', 'Manutenção corretiva', 'Reposição em área comum', 'Material danificado', 'Vencido'];
@@ -225,28 +226,33 @@ async function abrirNovoItem() {
   const [cats, unis] = await Promise.all([
     db.from('categorias').select('id,nome').order('nome'), db.from('unidades_medida').select('id,sigla,nome').order('sigla')]);
   if (cats.error || unis.error) throw new Error((cats.error || unis.error).message);
-  janelaForm({
+  const fundo = janelaForm({
     titulo: 'Novo item', rotulo: 'Cadastrar',
     intro: 'O estoque começa em zero. Lance a primeira quantidade em “Entrada” ou recebendo uma compra.',
     corpo: h`
       <div class="field"><label for="n-nome">Nome</label><input id="n-nome" name="nome" required></div>
       <div class="field"><label for="n-cat">Categoria</label><select id="n-cat" name="cat">${cats.data.map((c) => h`<option value="${c.id}">${c.nome}</option>`)}</select></div>
       <div class="field"><label for="n-uni">Unidade</label><select id="n-uni" name="uni">${unis.data.map((u) => h`<option value="${u.id}">${u.sigla} — ${u.nome}</option>`)}</select></div>
-      <div class="field"><label for="n-min">Estoque mínimo</label><input id="n-min" name="min" inputmode="decimal" value="0"></div>
-      <div class="field"><label for="n-ideal">Estoque ideal</label><input id="n-ideal" name="ideal" inputmode="decimal" value="0">
+      <div class="field"><label><input type="checkbox" name="permanente" value="1" id="n-perm"> Item permanente (ferramenta ou patrimônio)</label>
+        <span class="dica">Martelo, mangueira, escada… Não tem mínimo, ideal nem validade e não gera alerta de compra.</span></div>
+      <div class="field" data-so-consumo><label for="n-min">Estoque mínimo</label><input id="n-min" name="min" inputmode="decimal" value="0"></div>
+      <div class="field" data-so-consumo><label for="n-ideal">Estoque ideal</label><input id="n-ideal" name="ideal" inputmode="decimal" value="0">
         <span class="dica">É a quantidade que você quer ter depois de repor. Não pode ser menor que o mínimo.</span></div>
       <div class="field"><label for="n-loc">Local (opcional)</label><input id="n-loc" name="loc"></div>`,
     aoEnviar: async (f) => {
-      const min = lerNumero(f.min), ideal = lerNumero(f.ideal);
+      const permanente = f.permanente === '1';
+      const min = permanente ? 0 : lerNumero(f.min), ideal = permanente ? 0 : lerNumero(f.ideal);
       if (!f.nome.trim()) throw new Error('Informe o nome.');
       if (!Number.isFinite(min) || min < 0 || !Number.isFinite(ideal) || ideal < 0) throw new Error('Mínimo e ideal precisam ser números (zero ou mais).');
       if (ideal < min) throw new Error('O estoque ideal não pode ser menor que o mínimo.');
       const { error } = await db.from('itens').insert({ condominio_id: cid(), nome: f.nome.trim(), categoria_id: f.cat, unidade_id: f.uni,
-        estoque_minimo: min, estoque_ideal: ideal, localizacao: f.loc.trim() || null });
+        estoque_minimo: min, estoque_ideal: ideal, localizacao: f.loc.trim() || null, permanente });
       if (error) throw new Error(error.code === '23505' ? 'Já existe um item com esse nome.' : error.message);
       aviso('Item cadastrado.', 'ok'); await recarregar();
     },
   });
+  const perm = fundo.querySelector('#n-perm');
+  perm.addEventListener('change', () => fundo.querySelectorAll('[data-so-consumo]').forEach((d) => { d.hidden = perm.checked; }));
 }
 
 export async function abrir(el) {

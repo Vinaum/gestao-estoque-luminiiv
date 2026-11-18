@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Roda os testes SQL do banco num Postgres DESCARTÁVEL (nunca no Supabase de verdade).
 # Cria um banco temporário, simula o ambiente Supabase, aplica o legado + as migrations
-# 0001..0012 e executa os cenários A–H e o teste de concorrência. Apaga o banco no fim.
+# todas, reaplica a última (precisa poder ser repetida) e executa os cenários A–H e o teste de concorrência. Apaga o banco no fim.
 # Uso: PGHOST=... PGPORT=... PGUSER=postgres bash supabase/tests/rodar.sh
 set -u
 AQUI=$(cd "$(dirname "$0")" && pwd); SUP=$(dirname "$AQUI")
@@ -16,7 +16,9 @@ sed -e '/^create role/d' $AQUI/00_stub_supabase.sql | $P -f - || exit 3
 $P -f $AQUI/legacy_schema.sql >/dev/null || exit 3
 $P -f $AQUI/01_legado_seed.sql >/dev/null || exit 3
 for f in $SUP/migrations/*.sql; do $P -f $f >/dev/null || { echo "FALHOU migration $(basename $f)"; exit 4; }; done
-echo "migrations aplicadas: $(ls $SUP/migrations/*.sql | wc -l)"
+# a migration mais nova precisa poder ser repetida (quem roda duas vezes por engano não quebra nada)
+ULT=$(ls $SUP/migrations/*.sql | tail -1); $P -f $ULT >/dev/null 2>&1 || { echo "FALHOU ao reaplicar $(basename $ULT)"; exit 4; }
+echo "migrations aplicadas: $(ls $SUP/migrations/*.sql | wc -l) (a última reaplicada sem erro)"
 SAIDA=$(psql -v ON_ERROR_STOP=1 -d $DB -f $AQUI/02_cenarios.sql 2>&1); RC=$?
 NOK=$(echo "$SAIDA" | grep -c "NOTICE:  OK ")
 NFALHA=$(echo "$SAIDA" | grep -cE "NOTICE:  (FALHA|FAIL)|ERROR:")

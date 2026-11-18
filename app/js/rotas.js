@@ -10,6 +10,7 @@ export const ROTAS = [
   { id: 'operacao',       titulo: 'Operação diária',        papeis: EQUIPE,  grupo: 'Estoque', modulo: './modules/operacao/operacao.js' },
   { id: 'estoque',        titulo: 'Estoque atual',          papeis: EQUIPE,  grupo: 'Estoque' , modulo: './modules/estoque/estoque.js' },
   { id: 'config-estoque', titulo: 'Configuração de estoque',papeis: EQUIPE,  grupo: 'Estoque' , modulo: './modules/config-estoque/config-estoque.js' },
+  { id: 'patrimonio',     titulo: 'Ferramentas e patrimônio', papeis: EQUIPE, grupo: 'Estoque' , modulo: './modules/patrimonio/patrimonio.js' },
   { id: 'compras',        titulo: 'Central de compras',     papeis: EQUIPE,  grupo: 'Compras', modulo: './modules/compras/compras.js' },
   { id: 'fornecedores',   titulo: 'Fornecedores',           papeis: EQUIPE,  grupo: 'Compras', modulo: './modules/fornecedores/fornecedores.js' },
   { id: 'consumo',        titulo: 'Consumo',                papeis: EQUIPE,  grupo: 'Análises', modulo: './modules/relatorios/consumo.js' },

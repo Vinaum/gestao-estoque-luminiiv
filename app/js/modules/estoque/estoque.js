@@ -6,6 +6,7 @@ import { num, moeda, dataBR } from '../../lib/format.js';
 const STATUS = {
   sem_estoque_cadastrado: ['Sem estoque cadastrado', 'status-neutro'], esgotado: ['Esgotado', 'status-crit'],
   comprar: ['Comprar', 'status-crit'], atencao: ['Atenção', 'status-warn'], normal: ['Normal', 'status-ok'],
+  permanente: ['Permanente', 'status-neutro'],
 };
 const VENC = {
   vencido: ['Vencido', 'status-crit'], curto_prazo: ['Vence em breve', 'status-warn'], medio_prazo: ['Vence em até 90 dias', 'status-warn'],

@@ -49,6 +49,7 @@ button.btn:disabled{ opacity:.4; cursor:not-allowed; }
 .toolbar{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:10px; flex-wrap:wrap;}
 form.inline-form{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-top:14px; align-items:end; }
 .field{ display:flex; flex-direction:column; gap:5px; }
+[hidden]{ display:none !important; }
 .field label{ font-size:11.5px; color:var(--muted); }
 .field input, .field select, .field textarea{ font-family:inherit; font-size:13.5px; padding:8px 9px; border:1px solid var(--border); border-radius:var(--radius); background:#fdfcf9; color:var(--ink); }
 .field textarea{ resize:vertical; min-height:38px; }
@@ -212,4 +213,19 @@ a.cartao-com.novo{ padding-left:13px; }
   .tabela-atas td:first-child{ display:inline-block; width:auto; margin-right:8px; color:var(--muted); font-size:13px; }
   .tabela-atas td:nth-child(2){ display:inline-block; width:auto; }
   .tabela-atas .acoes-linha{ text-align:left; white-space:normal; padding-top:8px; }
+}
+/* Ferramentas e patrimônio */
+.campo-busca{ width:100%; box-sizing:border-box; font:inherit; font-size:13.5px; padding:7px 9px; border:1px solid var(--border); border-radius:var(--radius); margin-bottom:8px; }
+.lista-marcar li{ align-items:center; }
+.lista-marcar label{ display:flex; gap:8px; align-items:center; }
+#pt-busca{ flex:1 1 260px; min-width:0; }
+.page-head .linha-acoes{ display:flex; gap:8px; flex-wrap:wrap; }
+@media (min-width:900px){ .page-head > .linha-acoes{ flex-wrap:nowrap; flex:0 0 auto; } }
+@media (max-width:640px){
+  .tabela-patrimonio thead{ display:none; }
+  .tabela-patrimonio, .tabela-patrimonio tbody, .tabela-patrimonio tr, .tabela-patrimonio td{ display:block; width:100%; box-sizing:border-box; }
+  .tabela-patrimonio tr{ border-bottom:1px solid var(--border); padding:10px 0; }
+  .tabela-patrimonio td{ border:0; padding:2px 0; text-align:left; }
+  .tabela-patrimonio td:nth-child(2), .tabela-patrimonio td:nth-child(3){ display:inline-block; width:auto; margin-right:10px; color:var(--muted); }
+  .tabela-patrimonio td:nth-child(3)::before{ content:'Local: '; }
 }
