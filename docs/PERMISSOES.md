@@ -13,6 +13,8 @@ Decisões do síndico (17/11/2026). A tabela abaixo é o que o sistema faz hoje;
 | **Ativar/desativar fornecedor** | ✓ | ✓ | – | – |
 | Montar compra e enviar para aprovação | ✓ | ✓ | ✓ | – |
 | **Aprovar compra** | ✓ | ✓ | – | – |
+| Serviços contratados: cadastrar, editar e registrar pagamento (com comprovante) | ✓ | ✓ | ✓ | – |
+| **Desativar/reativar serviço; corrigir ou excluir pagamento** | ✓ | ✓ | – | – |
 | **Lançar, corrigir e excluir nota fiscal antiga** (sem estoque, sem aprovação) | ✓ | ✓ | – | – |
 | Receber compra e anexar nota fiscal | ✓ | ✓ | ✓ | – |
 | **Painel e relatório de gastos** | ✓ | ✓ | ✓ | – |

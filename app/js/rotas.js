@@ -13,6 +13,7 @@ export const ROTAS = [
   { id: 'patrimonio',     titulo: 'Ferramentas e patrimônio', papeis: EQUIPE, grupo: 'Estoque' , modulo: './modules/patrimonio/patrimonio.js' },
   { id: 'compras',        titulo: 'Central de compras',     papeis: EQUIPE,  grupo: 'Compras', modulo: './modules/compras/compras.js' },
   { id: 'fornecedores',   titulo: 'Fornecedores',           papeis: EQUIPE,  grupo: 'Compras', modulo: './modules/fornecedores/fornecedores.js' },
+  { id: 'servicos',       titulo: 'Serviços contratados',   papeis: EQUIPE,  grupo: 'Compras', modulo: './modules/servicos/servicos.js' },
   { id: 'consumo',        titulo: 'Consumo',                papeis: EQUIPE,  grupo: 'Análises', modulo: './modules/relatorios/consumo.js' },
   { id: 'gastos',         titulo: 'Relatórios de gastos',   papeis: EQUIPE, grupo: 'Análises', modulo: './modules/relatorios/gastos.js' },
   { id: 'comunicados',     titulo: 'Comunicados',            papeis: ['gestor', 'sindico', 'superadmin', 'morador'], grupo: 'Comunidade', modulo: './modules/comunicados/comunicados.js' },

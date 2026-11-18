@@ -26,6 +26,7 @@ Cada arquivo pode ser repetido logo depois de rodado, sem estragar nada. Não ro
 | 19 | 0019_atas | Atas das assembleias: PDF em bucket privado (até 10 MB); síndico e gestor cadastram, só o síndico exclui; todos os membros leem |
 | 20 | 0020_itens_permanentes | Itens permanentes (ferramentas e patrimônio): sem mínimo/ideal, fora dos alertas de compra e vencimento e da cobertura; estado de conservação. Refaz as leituras v_estoque_item, v_lotes e v_cobertura |
 | 21 | 0021_compras_retroativas | Notas fiscais antigas: compra "retroativa" com valor informado, já recebida, sem itens e sem estoque; só o síndico lança, corrige e exclui. Refaz a leitura v_compras |
+| 22 | 0022_servicos | Serviços contratados e pagamentos (comprovantes em bucket privado). Síndico e gestor cadastram e registram pagamentos; só o síndico desativa serviço e corrige/exclui pagamento; morador não vê |
 
 `pendentes/0099_remover_legado.sql` **não deve ser rodado** sem aprovação separada: apaga o modelo antigo.
 

@@ -2,6 +2,7 @@ import { h, render } from '../../lib/html.js';
 import { db } from '../../lib/supabase.js';
 import { estado, papelAtual } from '../../lib/estado.js';
 import { num, moeda, dataBR, dataHoraBR } from '../../lib/format.js';
+import { comoGastos } from '../servicos/calculos.js';
 import { EFETIVADAS, MESES, periodoAtual, contarStatus, aComprar, alertasReposicao, emAtencao, vencimentos, gastos, comprasDoMes, topConsumo } from './calculos.js';
 
 const FAIXA = { vencido: ['Vencido', 'status-crit'], curto_prazo: ['Até 30 dias', 'status-warn'], medio_prazo: ['Até 90 dias', 'status-neutro'] };
@@ -11,7 +12,7 @@ export async function abrir(el) {
   const p = periodoAtual();
   const podeAprovar = ['sindico', 'superadmin'].includes(papelAtual());
   const q = (t) => db.from(t).select('*').eq('condominio_id', cid);
-  const [it, lt, cp, ag, cons, aj, sai] = await Promise.all([
+  const [it, lt, cp, ag, cons, aj, sai, sp, sv] = await Promise.all([
     q('v_estoque_item').eq('ativo', true).order('nome'),
     q('v_lotes').gt('saldo', 0).in('faixa_vencimento', ['vencido', 'curto_prazo', 'medio_prazo']),
     q('v_compras').in('status', EFETIVADAS).gte('data_compra', p.inicioAno).lte('data_compra', p.fimAno).order('data_compra', { ascending: false }),
@@ -19,8 +20,10 @@ export async function abrir(el) {
     q('movimentacoes').eq('tipo', 'consumo').order('data_hora', { ascending: false }).limit(10),
     q('movimentacoes').eq('tipo', 'ajuste').order('data_hora', { ascending: false }).limit(10),
     q('v_saidas_mensal').eq('mes', p.inicioMes).eq('tipo', 'consumo'),
+    db.from('servico_pagamentos').select('id,servico_id,data_pagamento,valor').eq('condominio_id', cid).gte('data_pagamento', p.inicioAno).lte('data_pagamento', p.fimAno),
+    db.from('servicos_contratados').select('id,nome,servico').eq('condominio_id', cid),
   ]);
-  const falha = [it, lt, cp, ag, cons, aj, sai].find((r) => r.error);
+  const falha = [it, lt, cp, ag, cons, aj, sai, sp, sv].find((r) => r.error);
   if (falha) throw new Error(falha.error.message);
 
   const itens = it.data, porId = Object.fromEntries(itens.map((i) => [i.item_id, i]));
@@ -29,7 +32,7 @@ export async function abrir(el) {
   const nomes = Object.fromEntries((pf || []).map((x) => [x.id, x.nome]));
 
   const c = contarStatus(itens), alertas = alertasReposicao(itens), atencao = emAtencao(itens);
-  const v = vencimentos(lt.data), g = gastos(cp.data, p.ano, p.mes), doMes = comprasDoMes(cp.data, p.ano, p.mes);
+  const v = vencimentos(lt.data), g = gastos(cp.data.concat(comoGastos(sp.data, sv.data)), p.ano, p.mes), doMes = comprasDoMes(cp.data, p.ano, p.mes);
   const top = topConsumo(sai.data, porId), maxMes = Math.max(...g.porMes, 1);
   const nomeMes = new Date(p.ano, p.mes - 1, 1).toLocaleDateString('pt-BR', { month: 'long' });
   const venc30 = v.cont.vencido + v.cont.curto_prazo;

@@ -229,3 +229,12 @@ a.cartao-com.novo{ padding-left:13px; }
   .tabela-patrimonio td:nth-child(2), .tabela-patrimonio td:nth-child(3){ display:inline-block; width:auto; margin-right:10px; color:var(--muted); }
   .tabela-patrimonio td:nth-child(3)::before{ content:'Local: '; }
 }
+/* Serviços contratados */
+@media (max-width:640px){
+  .tabela-servicos thead{ display:none; }
+  .tabela-servicos, .tabela-servicos tbody, .tabela-servicos tr, .tabela-servicos td{ display:block; width:100%; box-sizing:border-box; }
+  .tabela-servicos tr{ border-bottom:1px solid var(--border); padding:10px 0; }
+  .tabela-servicos td{ border:0; padding:2px 0; text-align:left; }
+  .tabela-servicos td:nth-child(4)::before{ content:'Último pagamento: '; color:var(--muted); }
+  .tabela-servicos .acoes-linha{ white-space:normal; padding-top:8px; }
+}

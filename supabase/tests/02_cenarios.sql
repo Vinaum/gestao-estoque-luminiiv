@@ -1568,6 +1568,112 @@ begin
 end $$;
 
 -- ============================================================
+-- Serviços contratados e pagamentos
+-- ============================================================
+do $$
+declare
+  v_a uuid := tests.id('condA'); v_b uuid := tests.id('condB');
+  s1 uuid; s2 uuid; sb uuid; p1 uuid; p2 uuid; p3 uuid; k uuid := gen_random_uuid(); v_path text; r record;
+begin
+  raise notice '--- Serviços contratados ---';
+  perform tests.login(tests.mor());
+  perform tests.erro('S morador não cadastra serviço', format('select public.salvar_servico(%L, null, %L::jsonb)', v_a, '{"nome":"x","servico":"y"}'), 'permissão');
+  perform tests.logout();
+
+  perform tests.login(tests.gest());
+  s1 := public.salvar_servico(v_a, null, jsonb_build_object('nome', ' Piscinas Azul ', 'servico', 'Piscineiro', 'telefone', '+55 (11) 98765-4321',
+          'email', 'Contato@Azul.com', 'valor_combinado', '850.5', 'periodicidade', 'mensal', 'dia_pagamento', '10'));
+  select * into r from public.servicos_contratados where id = s1;
+  perform tests.ok('S gestor cadastra: nome sem espaços, telefone só dígitos, e-mail minúsculo, valor e dia',
+    r.nome = 'Piscinas Azul' and r.telefone = '11987654321' and r.email = 'contato@azul.com' and r.valor_combinado = 850.5 and r.dia_pagamento = 10 and r.ativo);
+  s2 := public.salvar_servico(v_a, null, '{"nome":"João Jardins","servico":"Jardineiro","periodicidade":"por_visita"}'::jsonb);
+  perform tests.ok('S só nome e serviço bastam', (select telefone is null and valor_combinado is null and dia_pagamento is null from public.servicos_contratados where id = s2));
+  perform tests.erro('S sem nome', format('select public.salvar_servico(%L, null, %L::jsonb)', v_a, '{"nome":" ","servico":"y"}'), 'nome do prestador');
+  perform tests.erro('S sem serviço', format('select public.salvar_servico(%L, null, %L::jsonb)', v_a, '{"nome":"x"}'), 'Informe o serviço');
+  perform tests.erro('S telefone inválido', format('select public.salvar_servico(%L, null, %L::jsonb)', v_a, '{"nome":"x","servico":"y","telefone":"1234"}'), 'Telefone');
+  perform tests.erro('S e-mail inválido', format('select public.salvar_servico(%L, null, %L::jsonb)', v_a, '{"nome":"x","servico":"y","email":"sem-arroba"}'), 'E-mail');
+  perform tests.erro('S valor negativo', format('select public.salvar_servico(%L, null, %L::jsonb)', v_a, '{"nome":"x","servico":"y","valor_combinado":"-1"}'), 'maior que zero');
+  perform tests.erro('S valor em texto', format('select public.salvar_servico(%L, null, %L::jsonb)', v_a, '{"nome":"x","servico":"y","valor_combinado":"oitocentos"}'), 'inválido');
+  perform tests.erro('S periodicidade inválida', format('select public.salvar_servico(%L, null, %L::jsonb)', v_a, '{"nome":"x","servico":"y","periodicidade":"anual"}'), 'Periodicidade');
+  perform tests.erro('S dia 32', format('select public.salvar_servico(%L, null, %L::jsonb)', v_a, '{"nome":"x","servico":"y","dia_pagamento":"32"}'), '1 a 31');
+  perform tests.erro('S duplicado (mesmo nome e serviço)', format('select public.salvar_servico(%L, null, %L::jsonb)', v_a, '{"nome":"piscinas azul","servico":"PISCINEIRO"}'), 'Já existe');
+  perform tests.erro('S gestor não cadastra no B', format('select public.salvar_servico(%L, null, %L::jsonb)', v_b, '{"nome":"x","servico":"y"}'), 'permissão');
+  perform tests.erro('S editar serviço de outro condomínio pelo id', format('select public.salvar_servico(%L, %L, %L::jsonb)', v_b, s1, '{"nome":"x","servico":"y"}'), 'permissão');
+  perform tests.erro('S gravação direta bloqueada', format('update public.servicos_contratados set valor_combinado = 1 where id = %L', s1), 'permission denied');
+  perform public.salvar_servico(v_a, s1, jsonb_build_object('nome', 'Piscinas Azul', 'servico', 'Piscineiro', 'valor_combinado', '900', 'dia_pagamento', '5'));
+  perform tests.ok('S gestor edita (e campos não enviados ficam vazios)', (select valor_combinado = 900 and dia_pagamento = 5 and telefone is null from public.servicos_contratados where id = s1));
+  perform tests.erro('S gestor não desativa', format('select public.definir_servico_ativo(%L, false)', s1), 'permissão');
+
+  -- pagamentos
+  p1 := public.registrar_pagamento_servico(s1, jsonb_build_object('data_pagamento', (current_date - 3)::text, 'valor', '900', 'referencia', 'Mês corrente', 'numero_recibo', 'R-1'), k);
+  perform tests.ok('S gestor registra pagamento', (select valor = 900 and referencia = 'Mês corrente' and registrado_por = tests.gest() from public.servico_pagamentos where id = p1));
+  perform tests.ok('S mesma chave não duplica (clique duplo)', public.registrar_pagamento_servico(s1, '{"data_pagamento":"2025-01-01","valor":"1"}'::jsonb, k) = p1
+    and (select count(*) from public.servico_pagamentos where servico_id = s1) = 1);
+  perform tests.erro('S valor com vírgula: o banco recusa (a tela converte "150,00" para 150.00)', format('select public.registrar_pagamento_servico(%L, %L::jsonb, gen_random_uuid())', s2, '{"data_pagamento":"2025-08-01","valor":"150,00"}'), 'Valor inválido');
+  perform tests.logout();
+end $$;
+
+do $$
+declare
+  v_a uuid := tests.id('condA'); v_b uuid := tests.id('condB');
+  s1 uuid; s2 uuid; p1 uuid; p2 uuid; v_path text;
+begin
+  select id into s1 from public.servicos_contratados where condominio_id = v_a and servico = 'Piscineiro';
+  select id into s2 from public.servicos_contratados where condominio_id = v_a and servico = 'Jardineiro';
+  perform tests.login(tests.gest());
+  select id into p1 from public.servico_pagamentos where servico_id = s1;
+  p2 := public.registrar_pagamento_servico(s2, '{"data_pagamento":"2025-08-01","valor":"150.00"}'::jsonb, gen_random_uuid());
+  perform tests.erro('S pagamento sem data', format('select public.registrar_pagamento_servico(%L, %L::jsonb, gen_random_uuid())', s1, '{"valor":"10"}'), 'Informe a data');
+  perform tests.erro('S pagamento no futuro', format('select public.registrar_pagamento_servico(%L, %L::jsonb, gen_random_uuid())', s1, jsonb_build_object('data_pagamento', (current_date + 1)::text, 'valor', '10')), 'futuro');
+  perform tests.erro('S pagamento sem valor', format('select public.registrar_pagamento_servico(%L, %L::jsonb, gen_random_uuid())', s1, '{"data_pagamento":"2025-01-01"}'), 'Informe o valor');
+  perform tests.erro('S pagamento valor zero', format('select public.registrar_pagamento_servico(%L, %L::jsonb, gen_random_uuid())', s1, '{"data_pagamento":"2025-01-01","valor":"0"}'), 'maior que zero');
+  perform tests.erro('S pagamento valor absurdo', format('select public.registrar_pagamento_servico(%L, %L::jsonb, gen_random_uuid())', s1, '{"data_pagamento":"2025-01-01","valor":"5000000"}'), 'alto demais');
+  perform tests.erro('S pagamento sem chave', format('select public.registrar_pagamento_servico(%L, %L::jsonb, null)', s1, '{"data_pagamento":"2025-01-01","valor":"1"}'), 'Chave');
+  perform tests.erro('S pagamento direto na tabela, não', format('insert into public.servico_pagamentos (condominio_id, servico_id, data_pagamento, valor, chave) values (%L, %L, current_date, 1, gen_random_uuid())', v_a, s1), 'permission denied');
+  -- comprovante
+  v_path := v_a || '/' || p1 || '/recibo.pdf';
+  perform tests.erro('S comprovante de outro pagamento', format('select public.definir_comprovante_pagamento(%L, %L, ''r.pdf'')', p1, v_a || '/' || p2 || '/r.pdf'), 'não pertence');
+  perform tests.erro('S comprovante de outro condomínio', format('select public.definir_comprovante_pagamento(%L, %L, ''r.pdf'')', p1, v_b || '/' || p1 || '/r.pdf'), 'não pertence');
+  insert into storage.objects (bucket_id, name) values ('servicos', v_path);
+  perform public.definir_comprovante_pagamento(p1, v_path, 'Recibo novembro.pdf');
+  perform tests.texto('S comprovante registrado', (select comprovante_nome from public.servico_pagamentos where id = p1), 'Recibo novembro.pdf');
+  perform tests.igual('S gestor lê o comprovante', (select count(*) from storage.objects where bucket_id = 'servicos'), 1);
+  delete from storage.objects where bucket_id = 'servicos';
+  perform tests.igual('S gestor não apaga comprovante', (select count(*) from storage.objects where bucket_id = 'servicos'), 1);
+  perform tests.erro('S gestor não corrige pagamento', format('select public.corrigir_pagamento_servico(%L, %L::jsonb)', p1, '{"data_pagamento":"2025-01-01","valor":"1"}'), 'permissão');
+  perform tests.erro('S gestor não exclui pagamento', format('select public.excluir_pagamento_servico(%L)', p1), 'permissão');
+  perform tests.logout();
+
+  perform tests.login(tests.mor());
+  perform tests.igual('S morador não vê serviços', (select count(*) from public.servicos_contratados where condominio_id = v_a), 0);
+  perform tests.igual('S morador não vê pagamentos', (select count(*) from public.servico_pagamentos where condominio_id = v_a), 0);
+  perform tests.igual('S morador não lê comprovantes', (select count(*) from storage.objects where bucket_id = 'servicos'), 0);
+  perform tests.erro('S morador não registra pagamento', format('select public.registrar_pagamento_servico(%L, %L::jsonb, gen_random_uuid())', s1, '{"data_pagamento":"2025-01-01","valor":"1"}'), 'permissão');
+  perform tests.logout();
+  perform tests.login('00000000-0000-0000-0000-0000000000b2');
+  perform tests.igual('S síndico do B não vê serviços do A', (select count(*) from public.servicos_contratados where condominio_id = v_a), 0);
+  perform tests.igual('S síndico do B não lê comprovantes do A', (select count(*) from storage.objects where bucket_id = 'servicos'), 0);
+  perform tests.logout();
+
+  -- síndico: desativar, corrigir, excluir
+  perform tests.login(tests.sind());
+  perform public.definir_servico_ativo(s2, false);
+  perform tests.erro('S serviço desativado não recebe pagamento', format('select public.registrar_pagamento_servico(%L, %L::jsonb, gen_random_uuid())', s2, '{"data_pagamento":"2025-01-01","valor":"1"}'), 'desativado');
+  perform tests.igual('S desativar mantém o histórico', (select count(*) from public.servico_pagamentos where servico_id = s2), 1);
+  perform public.definir_servico_ativo(s2, true);
+  perform tests.ok('S síndico reativa', (select ativo from public.servicos_contratados where id = s2));
+  perform public.corrigir_pagamento_servico(p1, '{"data_pagamento":"2025-02-01","valor":"950","referencia":"Fevereiro"}'::jsonb);
+  perform tests.ok('S síndico corrige pagamento (mantém comprovante)', (select valor = 950 and data_pagamento = '2025-02-01' and referencia = 'Fevereiro' and numero_recibo is null and comprovante_path = v_path from public.servico_pagamentos where id = p1));
+  perform tests.erro('S corrigir com data futura', format('select public.corrigir_pagamento_servico(%L, %L::jsonb)', p1, jsonb_build_object('data_pagamento', (current_date + 5)::text, 'valor', '1')), 'futuro');
+  perform tests.texto('S excluir devolve o caminho do comprovante', public.excluir_pagamento_servico(p1), v_path);
+  perform tests.ok('S exclusão na auditoria', exists (select 1 from public.auditoria where tabela = 'servico_pagamentos' and registro_id = p1::text and acao = 'delete'));
+  delete from storage.objects where bucket_id = 'servicos';
+  perform tests.igual('S síndico apaga o comprovante', (select count(*) from storage.objects where bucket_id = 'servicos'), 0);
+  perform tests.erro('S serviço com pagamentos não pode ser apagado direto', format('delete from public.servicos_contratados where id = %L', s2), 'permission denied');
+  perform tests.logout();
+end $$;
+
+-- ============================================================
 -- Conferência final de consistência (todos os condomínios)
 -- ============================================================
 do $$

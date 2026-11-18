@@ -49,7 +49,7 @@ export function csvCompras(compras) {
   const cel = (v) => { let t = String(v ?? ''); if (/^[=+\-@\t\r]/.test(t)) t = "'" + t; return /[";\n\r]/.test(t) ? `"${t.replaceAll('"', '""')}"` : t; };
   const dec = (n) => Number(n).toFixed(2).replace('.', ',');
   const linhas = [['Data', 'Fornecedor', 'Nota fiscal', 'Situação', 'Valor']].concat(
-    compras.map((c) => [c.data_compra.split('-').reverse().join('/'), c.fornecedor || '', c.numero_nf || '', (c.retroativa ? 'nota antiga' : c.status.replaceAll('_', ' ')), dec(c.valor_total)]));
+    compras.map((c) => [c.data_compra.split('-').reverse().join('/'), c.fornecedor || '', c.numero_nf || '', (c.servico ? 'serviço' : c.retroativa ? 'nota antiga' : c.status.replaceAll('_', ' ')), dec(c.valor_total)]));
   return '﻿' + linhas.map((l) => l.map(cel).join(';')).join('\r\n');
 }
 
@@ -64,4 +64,15 @@ export function fatiasPizza(lista, n = 8) {
   if (lista.length <= n) return lista;
   const topo = lista.slice(0, n - 1), resto = lista.slice(n - 1).reduce((s, x) => s + x.valor, 0);
   return [...topo, { nome: 'Demais', valor: resto }];
+}
+
+// Gastos que não têm itens: notas antigas (pela categoria informada) e pagamentos de serviços ("Serviços").
+export function categoriasSemItens(lista) {
+  const por = {};
+  for (const c of lista) {
+    if (!c.retroativa && !c.servico) continue;
+    const n = c.servico ? 'Serviços' : (c.categoria || 'Sem categoria');
+    por[n] = Math.round(((por[n] || 0) + Number(c.valor_total)) * 100) / 100;
+  }
+  return por;
 }
