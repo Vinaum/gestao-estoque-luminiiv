@@ -5,6 +5,7 @@ import { num, moeda, dataBR, dataHoraBR, lerNumero } from '../../lib/format.js';
 import { aviso, abrirJanela, confirmar, janelaForm, mensagemErro } from '../../lib/ui.js';
 import { pillCompra, podeAprovar } from './comum.js';
 import { abrirEditor } from './editor.js';
+import { abrirRetroativa } from './retroativa.js';
 
 const TIPOS_NF = { 'application/pdf': 'pdf', 'image/jpeg': 'jpg', 'image/png': 'png' };
 const MAX_NF = 5 * 1024 * 1024;
@@ -36,6 +37,7 @@ async function carregarCompleta(id) {
 export async function abrirDetalhes(id, aoMudar) {
   const d = await carregarCompleta(id);
   const { compra, linhas, recebimentos, recItens, itens, nomes } = d;
+  if (compra.retroativa) return detalhesRetroativa(compra, nomes, aoMudar);
   const st = compra.status;
   const pendente = linhas.some((l) => Number(l.qtd_solicitada) > Number(l.qtd_recebida));
   const editavel = ['planejada', 'aguardando_aprovacao'].includes(st);
@@ -154,5 +156,43 @@ function editarNF(compra, aoMudar) {
       await rpc('atualizar_nf_compra', { p_compra_id: compra.compra_id, p_numero_nf: f.numero.trim() || null, p_arquivo_path: caminho });
       aviso('Nota fiscal salva.', 'ok'); await aoMudar?.();
     },
+  });
+}
+
+// Nota antiga: sem itens nem recebimento. Síndico corrige ou exclui.
+function detalhesRetroativa(compra, nomes, aoMudar) {
+  const sindico = podeAprovar();
+  const fundo = abrirJanela(h`
+    <h3>Nota antiga de ${dataBR(compra.data_compra)} <span class="tag" data-retro>Nota antiga</span></h3>
+    <p>${compra.fornecedor || 'Fornecedor não informado'} · Lançada por ${nomes[compra.responsavel_id] || '—'}${compra.aprovada_em ? ` em ${dataHoraBR(compra.aprovada_em)}` : ''}</p>
+    <div class="cards"><div class="card"><div class="k">Valor</div><div class="v">${moeda(compra.valor_total)}</div></div>
+      <div class="card"><div class="k">Categoria</div><div class="v" style="font-size:16px">${compra.categoria || 'Sem categoria'}</div></div></div>
+    ${compra.observacoes ? h`<p class="dica">${compra.observacoes}</p>` : ''}
+    <p class="dica">Lançamento retroativo: entra nos gastos, mas não alterou o estoque.</p>
+    <div class="panel" style="margin:12px 0"><b>Nota fiscal:</b> ${compra.numero_nf || 'não informada'}
+      ${compra.nf_arquivo_path ? h` · <button class="icon-btn" data-nf-ver>Abrir arquivo</button>` : ' · sem arquivo'}</div>
+    <div class="auth-error hidden" data-erro role="alert"></div>
+    <div class="acoes"><button class="btn ghost" data-fechar>Fechar</button>
+      ${sindico ? h`<button class="btn danger" data-a="excluir">Excluir</button><button class="btn" data-a="corrigir">Corrigir</button>` : ''}</div>`, { largo: true });
+  fundo.querySelector('[data-fechar]').addEventListener('click', () => fundo.remove());
+  fundo.addEventListener('keydown', (e) => { if (e.key === 'Escape') fundo.remove(); });
+  const erro = (e) => { const c = fundo.querySelector('[data-erro]'); c.textContent = mensagemErro(e); c.classList.remove('hidden'); };
+  fundo.querySelector('[data-nf-ver]')?.addEventListener('click', async () => {
+    const aba = window.open('', '_blank');   // aberta no clique, para o navegador não bloquear
+    const { data, error } = await db.storage.from('notas-fiscais').createSignedUrl(compra.nf_arquivo_path, 120);
+    if (error) { aba?.close(); return erro(error); }
+    if (aba) { aba.opener = null; aba.location.href = data.signedUrl; } else window.location.href = data.signedUrl;
+  });
+  fundo.addEventListener('click', async (ev) => {
+    const b = ev.target.closest('[data-a]'); if (!b) return;
+    try {
+      if (b.dataset.a === 'corrigir') { fundo.remove(); await abrirRetroativa({ compra, aoSalvar: aoMudar }); }
+      else if (b.dataset.a === 'excluir') {
+        if (!(await confirmar('Excluir nota antiga?', `O lançamento de ${moeda(compra.valor_total)} sai dos gastos. A exclusão fica registrada na auditoria.`, { rotulo: 'Excluir', perigo: true }))) return;
+        const caminho = await rpc('excluir_compra_retroativa', { p_id: compra.compra_id });
+        if (caminho) { try { await db.storage.from('notas-fiscais').remove([caminho]); } catch { /* sem prejuízo */ } }
+        fundo.remove(); aviso('Nota antiga excluída.', 'ok'); await aoMudar?.();
+      }
+    } catch (e) { erro(e); }
   });
 }

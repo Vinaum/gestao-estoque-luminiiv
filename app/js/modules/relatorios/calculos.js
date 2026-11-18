@@ -37,8 +37,9 @@ export function gastosPorFornecedor(compras, ano) {
   return Object.entries(por).map(([nome, valor]) => ({ nome, valor })).sort((a, b) => b.valor - a.valor);
 }
 // linhas: compra_itens {compra_id,item_id,custo_total}; categoriaDoItem: {item_id: 'Limpeza'}; idsValidos: compras efetivadas do ano
-export function gastosPorCategoria(linhas, categoriaDoItem, idsValidos) {
-  const ok = new Set(idsValidos), por = {};
+// extras: valores por categoria que não vêm de itens (ex.: notas antigas lançadas só com o total).
+export function gastosPorCategoria(linhas, categoriaDoItem, idsValidos, extras = {}) {
+  const ok = new Set(idsValidos), por = { ...extras };
   linhas.forEach((l) => { if (!ok.has(l.compra_id)) return; const n = categoriaDoItem[l.item_id] || 'Sem categoria'; por[n] = (por[n] || 0) + Number(l.custo_total); });
   return Object.entries(por).map(([nome, valor]) => ({ nome, valor })).sort((a, b) => b.valor - a.valor);
 }
@@ -48,7 +49,7 @@ export function csvCompras(compras) {
   const cel = (v) => { let t = String(v ?? ''); if (/^[=+\-@\t\r]/.test(t)) t = "'" + t; return /[";\n\r]/.test(t) ? `"${t.replaceAll('"', '""')}"` : t; };
   const dec = (n) => Number(n).toFixed(2).replace('.', ',');
   const linhas = [['Data', 'Fornecedor', 'Nota fiscal', 'Situação', 'Valor']].concat(
-    compras.map((c) => [c.data_compra.split('-').reverse().join('/'), c.fornecedor || '', c.numero_nf || '', c.status.replaceAll('_', ' '), dec(c.valor_total)]));
+    compras.map((c) => [c.data_compra.split('-').reverse().join('/'), c.fornecedor || '', c.numero_nf || '', (c.retroativa ? 'nota antiga' : c.status.replaceAll('_', ' ')), dec(c.valor_total)]));
   return '﻿' + linhas.map((l) => l.map(cel).join(';')).join('\r\n');
 }
 

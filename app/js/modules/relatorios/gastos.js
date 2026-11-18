@@ -4,6 +4,7 @@ import { estado } from '../../lib/estado.js';
 import { moeda, dataBR } from '../../lib/format.js';
 import { aviso, mensagemErro } from '../../lib/ui.js';
 import { desenharGrafico, CORES } from '../../lib/grafico.js';
+import { categoriasRetroativas } from '../compras/retroativa_regras.js';
 import { EFETIVADAS, gastosPorMes, gastosPorFornecedor, gastosPorCategoria, csvCompras, rotuloMes, filtrarCompras, fatiasPizza } from './calculos.js';
 
 const anoAtual = new Date().getFullYear();
@@ -32,7 +33,7 @@ const filtradas = () => filtrarCompras(compras, { mes, forn });
 async function desenhar() {
   const lista = filtradas(), total = lista.reduce((s, c) => s + Number(c.valor_total), 0);
   const fornecedores = gastosPorFornecedor(filtrarCompras(compras, { mes }), ano);
-  const porCat = gastosPorCategoria(linhasAno, catDe, lista.map((c) => c.compra_id));
+  const porCat = gastosPorCategoria(linhasAno, catDe, lista.map((c) => c.compra_id), categoriasRetroativas(lista));
   const sufixo = (mes ? ' — ' + NOMES_MES[Number(mes) - 1] : '') + (forn ? ' — ' + forn : '');
   render(raizPagina, h`
     <div class="page-head"><div><h2>Relatórios de gastos</h2><p>Só entram compras já efetivadas (pedido feito, parcial ou recebida).</p></div>
@@ -47,10 +48,10 @@ async function desenhar() {
         <div class="grade2" style="margin-top:22px">
           <div><h3>Por fornecedor</h3><div style="height:${Math.max(120, Math.min(fornecedores.length, 8) * 34)}px"><canvas id="g-forn" role="img" aria-label="Gastos por fornecedor"></canvas></div></div>
           <div><h3>Por categoria</h3><div style="height:260px"><canvas id="g-cat" role="img" aria-label="Gastos por categoria"></canvas></div>
-            <p class="dica">A categoria vem dos itens de cada compra (respeita os filtros de mês e fornecedor).</p></div></div>
+            <p class="dica">A categoria vem dos itens de cada compra; nas notas antigas, da categoria informada no lançamento (respeita os filtros de mês e fornecedor).</p></div></div>
         <h3 style="margin-top:22px">Compras</h3>
         <div class="tabela-rolagem"><table><thead><tr><th>Data</th><th>Fornecedor</th><th>Nota fiscal</th><th>Situação</th><th>Valor</th></tr></thead><tbody>
-          ${lista.map((c) => h`<tr><td>${dataBR(c.data_compra)}</td><td>${c.fornecedor || '—'}</td><td>${c.numero_nf || '—'}</td><td>${c.status.replaceAll('_', ' ')}</td><td class="num">${moeda(c.valor_total)}</td></tr>`)}
+          ${lista.map((c) => h`<tr><td>${dataBR(c.data_compra)}</td><td>${c.fornecedor || '—'}</td><td>${c.numero_nf || '—'}</td><td>${c.retroativa ? h`<span class="tag" data-retro>Nota antiga</span>` : c.status.replaceAll('_', ' ')}</td><td class="num">${moeda(c.valor_total)}</td></tr>`)}
           <tr><td colspan="4"><b>Total</b></td><td class="num"><b>${moeda(total)}</b></td></tr></tbody></table></div>`
         : h`<div class="empty">Nenhuma compra efetivada em ${ano}.</div>`}</div>`);
   raizPagina.querySelector('#f-ano').addEventListener('change', async (e) => { ano = Number(e.target.value); forn = ''; mes = ''; try { await carregar(); await desenhar(); } catch (err) { aviso(mensagemErro(err), 'erro'); } });

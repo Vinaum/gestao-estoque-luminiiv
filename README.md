@@ -10,6 +10,7 @@ Aplicação web para o síndico e a comissão de um condomínio controlarem o es
 - **Saídas** com baixa automática do lote que vence primeiro (FEFO) ou do mais antigo (FIFO), sem permitir saldo negativo.
 - **Movimentações imutáveis**: erro se corrige por estorno ou ajuste, ambos com justificativa. Nada é apagado.
 - **Compras separadas do recebimento**: rascunho → aprovação do síndico → pedido → recebimento (parcial ou total, em vários lotes). Nota fiscal em PDF/JPG/PNG (até 5 MB) em armazenamento privado.
+- **Notas fiscais antigas**: o síndico lança gastos que já aconteceram só com data, valor total e o arquivo da nota (fornecedor, categoria e número opcionais). Entram nos gastos e no painel, mas não mexem no estoque nem passam por aprovação; o síndico pode corrigir ou excluir.
 - **Painel** (síndico e gestor): itens críticos, vencimentos, compras pendentes, gastos, cobertura de estoque.
 - **Relatórios** de consumo e de gastos, com gráficos.
 - **Torres e apartamentos**: estrutura do condomínio e vínculo de cada morador ao seu apartamento (base da futura área dos moradores).
@@ -44,7 +45,7 @@ app/            Interface (index.html, js/, assets/)
   js/lib/       Utilitários: HTML seguro, formatação, janelas, Supabase, estado
   js/modules/   Uma pasta por tela (operacao, estoque, compras, painel, relatorios, admin…)
 vendor/         Bibliotecas fixas (supabase-js, Chart.js) + SHA256SUMS
-supabase/       Banco: migrations/ (0001–0020), tests/, pendentes/
+supabase/       Banco: migrations/ (0001–0021), tests/, pendentes/
 tests/          Testes do front e auditoria de segurança
 docs/           Plano, mapa de testes e roteiro da virada
 ```

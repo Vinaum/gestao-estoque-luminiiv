@@ -1479,6 +1479,95 @@ begin
 end $$;
 
 -- ============================================================
+-- Notas fiscais retroativas
+-- ============================================================
+do $$
+declare
+  v_a uuid := tests.id('condA'); v_b uuid := tests.id('condB');
+  v_forn uuid; v_forn_b uuid; v_cat uuid; r1 uuid; r2 uuid; v_lotes int; v_movs int; v_path text; c record;
+begin
+  raise notice '--- Notas retroativas ---';
+  select id into v_forn from public.fornecedores where condominio_id = v_a limit 1;
+  insert into public.fornecedores (condominio_id, nome, criado_por) values (v_b, 'Fornecedor do B', '00000000-0000-0000-0000-0000000000b2') returning id into v_forn_b;
+  select id into v_cat from public.categorias where nome ilike 'el%tric%' limit 1;
+  select count(*) into v_lotes from public.lotes where condominio_id = v_a;
+  select count(*) into v_movs from public.movimentacoes where condominio_id = v_a;
+
+  perform tests.login(tests.gest());
+  perform tests.erro('R gestor não lança nota retroativa', format('select public.salvar_compra_retroativa(%L, null, %L::jsonb)', v_a, '{"data_compra":"2025-05-10","valor":"100"}'), 'permissão');
+  perform tests.logout();
+  perform tests.login(tests.mor());
+  perform tests.erro('R morador não lança', format('select public.salvar_compra_retroativa(%L, null, %L::jsonb)', v_a, '{"data_compra":"2025-05-10","valor":"100"}'), 'permissão');
+  perform tests.logout();
+
+  perform tests.login(tests.sind());
+  r1 := public.salvar_compra_retroativa(v_a, null, jsonb_build_object('data_compra', '2025-05-10', 'valor', '1234.567', 'fornecedor_id', v_forn,
+          'categoria_id', v_cat, 'numero_nf', ' 000123 ', 'observacoes', 'Troca de lâmpadas da garagem'));
+  select * into c from public.v_compras where compra_id = r1;
+  perform tests.ok('R lançamento nasce recebido, retroativo e com o valor (arredondado)', c.status = 'recebido' and c.retroativa and c.valor_total = 1234.57);
+  perform tests.ok('R número da nota sem espaços, fornecedor e categoria gravados', c.numero_nf = '000123' and c.fornecedor_id = v_forn and c.categoria_id = v_cat);
+  perform tests.ok('R aprovado por quem lançou', (select aprovada_por = tests.sind() and aprovada_em is not null from public.compras where id = r1));
+  perform tests.igual('R entra nos gastos (v_gastos)', (select count(*) from public.v_gastos where compra_id = r1), 1);
+  perform tests.ok('R não mexe no estoque (sem lotes nem movimentações)',
+    (select count(*) from public.lotes where condominio_id = v_a) = v_lotes and (select count(*) from public.movimentacoes where condominio_id = v_a) = v_movs);
+  r2 := public.salvar_compra_retroativa(v_a, null, '{"data_compra":"2024-01-15","valor":"80"}'::jsonb);
+  perform tests.ok('R só data e valor bastam', (select fornecedor_id is null and categoria_id is null and numero_nf is null from public.compras where id = r2));
+
+  perform tests.erro('R sem data', format('select public.salvar_compra_retroativa(%L, null, %L::jsonb)', v_a, '{"valor":"10"}'), 'Informe a data');
+  perform tests.erro('R data no futuro', format('select public.salvar_compra_retroativa(%L, null, %L::jsonb)', v_a, jsonb_build_object('data_compra', (current_date + 1)::text, 'valor', '10')), 'futuro');
+  perform tests.erro('R data antiga demais', format('select public.salvar_compra_retroativa(%L, null, %L::jsonb)', v_a, '{"data_compra":"1999-12-31","valor":"10"}'), 'inválida');
+  perform tests.erro('R valor zero', format('select public.salvar_compra_retroativa(%L, null, %L::jsonb)', v_a, '{"data_compra":"2025-01-01","valor":"0"}'), 'maior que zero');
+  perform tests.erro('R valor negativo', format('select public.salvar_compra_retroativa(%L, null, %L::jsonb)', v_a, '{"data_compra":"2025-01-01","valor":"-5"}'), 'maior que zero');
+  perform tests.erro('R valor absurdo', format('select public.salvar_compra_retroativa(%L, null, %L::jsonb)', v_a, '{"data_compra":"2025-01-01","valor":"99999999"}'), 'alto demais');
+  perform tests.erro('R valor com texto', format('select public.salvar_compra_retroativa(%L, null, %L::jsonb)', v_a, '{"data_compra":"2025-01-01","valor":"cem"}'), 'inválidos');
+  perform tests.erro('R fornecedor de outro condomínio', format('select public.salvar_compra_retroativa(%L, null, %L::jsonb)', v_a, jsonb_build_object('data_compra', '2025-01-01', 'valor', '10', 'fornecedor_id', v_forn_b)), 'Fornecedor não encontrado');
+  perform tests.erro('R síndico do A não lança no B', format('select public.salvar_compra_retroativa(%L, null, %L::jsonb)', v_b, '{"data_compra":"2025-01-01","valor":"10"}'), 'permissão');
+
+  -- regras que protegem o lançamento
+  perform tests.logout();   -- como dono do banco: nem assim (a trava é do próprio banco)
+  perform tests.erro('R não recebe itens (nem pelo dono do banco)', format('insert into public.compra_itens (compra_id, condominio_id, item_id, qtd_solicitada, custo_unitario) values (%L, %L, %L, 1, 1)', r1, v_a, tests.id('papel')), 'não tem itens');
+  perform tests.login(tests.sind());
+  perform tests.erro('R síndico não insere itens direto', format('insert into public.compra_itens (compra_id, condominio_id, item_id, qtd_solicitada, custo_unitario) values (%L, %L, %L, 1, 1)', r1, v_a, tests.id('papel')), 'permission denied');
+  perform tests.erro('R status não muda (nem cancelar)', format('select public.mudar_status_compra(%L, ''cancelado'')', r1), 'não permitida');
+  perform tests.erro('R não se edita como compra normal', format('select public.salvar_compra(%L, %L, ''{}''::jsonb, ''[]''::jsonb)', v_a, r1), 'não pode mais ser editada');
+  perform tests.erro('R direto na tabela, não', format('update public.compras set valor_informado = 1 where id = %L', r1), 'permission denied');
+
+  -- PDF pelo anexo de NF de sempre
+  v_path := v_a || '/' || r1 || '/nota.pdf';
+  insert into storage.objects (bucket_id, name) values ('notas-fiscais', v_path);
+  perform public.atualizar_nf_compra(r1, '000123', v_path);
+  perform tests.texto('R PDF anexado', (select nf_arquivo_path from public.compras where id = r1), v_path);
+
+  -- correção
+  perform public.salvar_compra_retroativa(v_a, r1, jsonb_build_object('data_compra', '2025-05-11', 'valor', '1300', 'numero_nf', '000124'));
+  perform tests.ok('R correção muda data, valor e número, e tira fornecedor/categoria não enviados',
+    (select data_compra = '2025-05-11' and valor_total = 1300 and numero_nf = '000124' and fornecedor_id is null and categoria_id is null from public.v_compras where compra_id = r1));
+  perform tests.ok('R correção mantém o PDF', (select nf_arquivo_path = v_path from public.compras where id = r1));
+  perform tests.erro('R corrigir compra normal por aqui, não', format('select public.salvar_compra_retroativa(%L, %L, %L::jsonb)', v_a,
+    (select id from public.compras where condominio_id = v_a and not retroativa limit 1), '{"data_compra":"2025-01-01","valor":"10"}'), 'Só lançamentos retroativos');
+  perform tests.erro('R excluir compra normal por aqui, não', format('select public.excluir_compra_retroativa(%L)',
+    (select id from public.compras where condominio_id = v_a and not retroativa limit 1)), 'Só lançamentos retroativos');
+  perform tests.logout();
+
+  perform tests.login(tests.gest());
+  perform tests.igual('R gestor vê o lançamento nos gastos', (select count(*) from public.v_gastos where compra_id = r1), 1);
+  perform tests.erro('R gestor não corrige', format('select public.salvar_compra_retroativa(%L, %L, %L::jsonb)', v_a, r1, '{"data_compra":"2025-01-01","valor":"10"}'), 'permissão');
+  perform tests.erro('R gestor não exclui', format('select public.excluir_compra_retroativa(%L)', r1), 'permissão');
+  perform tests.logout();
+  perform tests.login(tests.mor());
+  perform tests.igual('R morador não vê compras', (select count(*) from public.v_compras where compra_id = r1), 0);
+  perform tests.logout();
+
+  perform tests.login(tests.sind());
+  perform tests.texto('R excluir devolve o caminho do PDF', public.excluir_compra_retroativa(r1), v_path);
+  perform tests.ok('R excluído some dos gastos', not exists (select 1 from public.v_gastos where compra_id = r1));
+  perform tests.ok('R exclusão fica na auditoria', exists (select 1 from public.auditoria where tabela = 'compras' and registro_id = r1::text and acao = 'delete'));
+  perform tests.erro('R excluir de novo', format('select public.excluir_compra_retroativa(%L)', r1), 'não encontrado');
+  perform public.excluir_compra_retroativa(r2);
+  perform tests.logout();
+end $$;
+
+-- ============================================================
 -- Conferência final de consistência (todos os condomínios)
 -- ============================================================
 do $$

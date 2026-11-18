@@ -3,9 +3,10 @@ import { db } from '../../lib/supabase.js';
 import { estado, condominioAtual } from '../../lib/estado.js';
 import { num, moeda, dataBR } from '../../lib/format.js';
 import { aviso, abrirJanela, mensagemErro } from '../../lib/ui.js';
-import { pillCompra, STATUS_COMPRA, EM_ABERTO } from './comum.js';
+import { pillCompra, STATUS_COMPRA, EM_ABERTO, podeAprovar } from './comum.js';
 import { abrirEditor } from './editor.js';
 import { abrirDetalhes } from './detalhes.js';
+import { abrirRetroativa } from './retroativa.js';
 import { agruparPorCategoria, contarLista, textoLista, csvLista } from './lista.js';
 
 let aba = 'necessidade';
@@ -53,8 +54,8 @@ function painelCompras() {
       <option value="todas" ${filtroStatus === 'todas' ? raw('selected') : ''}>Todas</option>
       ${Object.entries(STATUS_COMPRA).map(([k, [r]]) => h`<option value="${k}" ${filtroStatus === k ? raw('selected') : ''}>${r}</option>`)}</select></div>
     ${lista.length ? h`<div class="tabela-rolagem"><table><thead><tr><th>Data</th><th>Fornecedor</th><th>Itens</th><th>Valor</th><th>NF</th><th>Situação</th><th></th></tr></thead><tbody>
-      ${lista.map((c) => h`<tr><td>${dataBR(c.data_compra)}</td><td>${c.fornecedor || '—'}</td><td class="num">${c.qtd_itens}</td>
-        <td class="num">${moeda(c.valor_total)}</td><td>${c.numero_nf || '—'}${c.nf_arquivo_path ? ' 📎' : ''}</td><td>${pillCompra(c.status)}</td>
+      ${lista.map((c) => h`<tr><td>${dataBR(c.data_compra)}</td><td>${c.fornecedor || '—'}</td><td class="num">${c.retroativa ? '—' : c.qtd_itens}</td>
+        <td class="num">${moeda(c.valor_total)}</td><td>${c.numero_nf || '—'}${c.nf_arquivo_path ? ' 📎' : ''}</td><td>${c.retroativa ? h`<span class="tag" data-retro>Nota antiga</span>` : pillCompra(c.status)}</td>
         <td><button class="btn pequeno ghost" data-acao="abrir" data-id="${c.compra_id}">Abrir</button></td></tr>`)}</tbody></table></div>`
       : h`<div class="empty">Nenhuma compra neste filtro.</div>`}</div>`;
 }
@@ -63,7 +64,8 @@ function desenhar() {
   const n = necessarios().length;
   render(raizPagina, h`
     <div class="page-head"><div><h2>Central de compras</h2><p>Do aviso de falta ao recebimento do material.</p></div>
-      <button class="btn" data-acao="nova">Nova compra</button></div>
+      <div class="linha-acoes">${podeAprovar() ? h`<button class="btn ghost" data-acao="retroativa">Lançar nota antiga</button>` : ''}
+        <button class="btn" data-acao="nova">Nova compra</button></div></div>
     <div class="tabs-mini" role="tablist">
       <button role="tab" data-aba="necessidade" class="${aba === 'necessidade' ? 'active' : ''}">Necessidade de compra${n ? ` (${n})` : ''}</button>
       <button role="tab" data-aba="compras" class="${aba === 'compras' ? 'active' : ''}">Compras</button></div>
@@ -130,6 +132,7 @@ export async function abrir(el) {
       const a = b.dataset.acao;
       if (a === 'nova') await abrirEditor({ aoSalvar: async () => { aba = 'compras'; await recarregar(); } });
       else if (a === 'gerar-lista') abrirLista();
+      else if (a === 'retroativa') await abrirRetroativa({ aoSalvar: async () => { aba = 'compras'; filtroStatus = 'todas'; await recarregar(); } });
       else if (a === 'criar-selecionados') {
         const pre = necessarios().filter((i) => marcados.has(i.item_id)).map((i) => ({ item_id: i.item_id, qtd: aComprar(i) }));
         await abrirEditor({ preItens: pre, aoSalvar: async () => { marcados.clear(); aba = 'compras'; await recarregar(); } });
